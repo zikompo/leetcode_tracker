@@ -1,0 +1,5 @@
+{
+  "lang": "python3",
+  "question_id": "1",
+  "typed_code": "class Solution:\n    def twoSum(self, nums, target):\n        seen = {}\n        for i, x in enumerate(nums):\n            if target - x in seen:\n                return [seen[target - x], i]\n            seen[x] = i\n"
+}

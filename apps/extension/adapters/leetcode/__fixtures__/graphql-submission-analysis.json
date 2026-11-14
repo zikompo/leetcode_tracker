@@ -1,0 +1,13 @@
+{
+  "data": {
+    "submissionAnalysis": {
+      "id": "1000001",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "timeComplexity": { "complexity": "O(N)", "displayName": "", "funcStr": "n => n" },
+      "spaceComplexity": { "complexity": "O(N)", "displayName": "", "funcStr": "n => n" },
+      "suggestedTimeComplexity": { "complexity": "O(N)", "displayName": "", "funcStr": "n => n" },
+      "suggestedSpaceComplexity": { "complexity": "O(N)", "displayName": "", "funcStr": "n => n" }
+    }
+  }
+}

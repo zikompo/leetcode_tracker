@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mock LeetCode problem</title>
+  </head>
+  <body>
+    <!-- Stand-in for a leetcode.com problem page. It makes the same requests the real client makes. -->
+    <h1 id="title">Mock problem</h1>
+    <button id="editorial">Editorial</button>
+    <button id="submit-wa">Submit (wrong answer)</button>
+    <button id="submit-ac">Submit (accepted)</button>
+    <div id="result"></div>
+    <div class="topics"><a href="/tag/array/" id="topic-array">Array</a></div>
+    <script>
+      window.monaco = {
+        editor: {
+          getEditors: () => [
+            {
+              getModel: () => ({
+                getValue: () => "class Solution: pass  # from editor",
+                getLanguageId: () => "python",
+              }),
+            },
+          ],
+        },
+      };
+      const slug = location.pathname.split("/")[2];
+      let nextId = 1000;
+      async function submit(outcome) {
+        const res = await fetch(`/problems/${slug}/submit/`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            lang: "python3",
+            question_id: "1",
+            typed_code: `# ${outcome} solution\nclass Solution: ...`,
+          }),
+        });
+        const { submission_id } = await res.json();
+        let result;
+        do {
+          result = await (
+            await fetch(`/submissions/detail/${submission_id}/v2/check/?o=${outcome}`)
+          ).json();
+        } while (result.state !== "SUCCESS");
+        history.pushState({}, "", `/problems/${slug}/submissions/${submission_id}/`);
+        document.getElementById("result").innerHTML =
+          `<span data-e2e-locator="submission-result">${result.status_msg}</span>`;
+      }
+      document.getElementById("submit-wa").onclick = () => submit("wa");
+      document.getElementById("submit-ac").onclick = () => submit("ac");
+      document.getElementById("editorial").onclick = () =>
+        history.pushState({}, "", `/problems/${slug}/editorial/`);
+    </script>
+  </body>
+</html>

@@ -62,11 +62,11 @@ export function App({ controller }: { controller: PageController }) {
       .catch(() => {});
   }, []);
 
-  // Show the form again whenever a new attempt starts or one is saved.
-  useEffect(
-    () => setTab(state.session ? "log" : "history"),
-    [state.formKey, Boolean(state.session)],
-  );
+  // Back to the form whenever a new attempt starts. After saving, stay put: the Log tab then
+  // shows "Attempt saved" with the next review date.
+  useEffect(() => {
+    if (state.session) setTab("log");
+  }, [state.formKey, Boolean(state.session)]);
 
   if (!state.loc) return null;
   const { problem, session } = state;

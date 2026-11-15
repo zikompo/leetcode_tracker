@@ -1,75 +1,107 @@
+/*
+ * The settings sections keep their semantic class names (the tests and the markup rely on
+ * them); here they take the shared theme's look, matching the ui package's components.
+ */
+@reference "@leettrack/ui/globals.css";
+
 .options {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  @apply mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6;
 }
 .options h1 {
-  font-size: 20px;
+  @apply flex items-center gap-2 text-xl font-semibold tracking-tight;
 }
-.card h2 {
-  margin-bottom: 10px;
+.card {
+  @apply flex min-w-0 flex-col gap-3 rounded-xl bg-card p-4 text-card-foreground ring-1 ring-foreground/10;
 }
-.radios {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.card > h2 {
+  @apply text-sm font-medium;
 }
-.radio {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  cursor: pointer;
+.muted {
+  @apply text-muted-foreground;
 }
-.radio > span {
-  display: flex;
-  flex-direction: column;
+.small {
+  @apply text-xs;
 }
-.card p {
-  margin: 0 0 10px;
+.ok {
+  @apply text-xs text-ok;
 }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
+.bad {
+  @apply text-xs text-bad;
 }
-.field > span {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.field input,
-.field select {
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-.card .btn[disabled] {
-  opacity: 0.6;
-  cursor: default;
+.row {
+  @apply flex flex-wrap items-center gap-2;
 }
 .spread {
-  justify-content: space-between;
+  @apply justify-between;
+}
+.stack {
+  @apply flex flex-col gap-2;
 }
 .grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  @apply grid gap-3 sm:grid-cols-2;
 }
-fieldset.field {
-  border: 0;
-  padding: 0;
+
+/* Buttons: shadcn's secondary and default (orange) looks. */
+.btn {
+  @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-secondary px-2.5 text-sm font-medium whitespace-nowrap text-secondary-foreground no-underline transition-colors outline-none select-none hover:bg-accent hover:no-underline focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50;
+}
+.btn-primary {
+  @apply bg-primary text-primary-foreground hover:bg-primary/80;
+}
+
+/* Fields: a label over an input, like the ui package's Input. */
+.field {
+  @apply flex min-w-0 flex-col gap-1.5 border-0 p-0;
+}
+.field > span {
+  @apply text-xs text-muted-foreground;
+}
+.field input:not([type="checkbox"]):not([type="radio"]),
+.field select,
+.field textarea {
+  @apply h-8 w-full min-w-0 rounded-lg border border-input bg-input/30 px-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50;
+}
+.field textarea {
+  @apply h-auto py-1.5;
 }
 .check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 2px 0;
-  cursor: pointer;
+  @apply flex cursor-pointer items-center gap-2;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  @apply size-4 accent-primary;
+}
+
+.radios {
+  @apply flex flex-col gap-1;
+}
+.radio {
+  @apply flex cursor-pointer items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent;
+}
+.radio > span {
+  @apply flex flex-col;
+}
+.radio input {
+  @apply mt-0.5;
+}
+
+.account-line {
+  @apply flex items-center gap-2.5;
+}
+.account-line img {
+  @apply size-7 rounded-full;
+}
+.device-code {
+  @apply w-fit rounded-lg bg-muted px-4 py-2 font-mono text-2xl tracking-[0.2em];
+}
+.repo-list,
+.target-list {
+  @apply flex flex-col gap-1.5;
+}
+.repo-list li,
+.target-list li {
+  @apply flex items-center gap-2.5 rounded-lg bg-muted/50 px-3 py-2;
+}
+.target-list li {
+  @apply justify-between;
 }

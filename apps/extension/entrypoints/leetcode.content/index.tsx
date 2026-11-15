@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import { browser } from "wxt/browser";
 import { LEETCODE_MATCHES } from "@/adapters/leetcode";
+import { loadPanelFonts } from "@/lib/fonts";
 import type { TabMessage } from "@/lib/types";
 import { App } from "./App";
 import { PageController } from "./controller";
@@ -21,6 +22,7 @@ export default defineContentScript({
       if (m?.kind === "leettrack-tab" && m.type === "open-panel") controller.setPanelOpen(true);
     });
 
+    loadPanelFonts();
     const ui = await createShadowRootUi(ctx, {
       name: "leettrack-panel",
       position: "inline",

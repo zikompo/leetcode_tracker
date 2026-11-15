@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { attemptSchema, problemSchema, settingsSchema } from "./schema";
-import type { Attempt, Problem, Settings } from "./types";
+import { attemptSchema, customListSchema, problemSchema, settingsSchema } from "./schema";
+import type { Attempt, CustomList, Problem, Settings } from "./types";
 
 export const EXPORT_SCHEMA_VERSION = 1;
 
@@ -11,12 +11,19 @@ export const exportFileSchema = z.object({
   problems: z.array(problemSchema),
   attempts: z.array(attemptSchema),
   settings: settingsSchema.optional(),
+  // Added in M4; older exports have none.
+  customLists: z.array(customListSchema).optional(),
 });
 
 export type ExportFile = z.infer<typeof exportFileSchema>;
 
 export function buildExport(
-  data: { problems: Problem[]; attempts: Attempt[]; settings: Settings },
+  data: {
+    problems: Problem[];
+    attempts: Attempt[];
+    settings: Settings;
+    customLists?: CustomList[];
+  },
   now = new Date(),
 ): ExportFile {
   return {

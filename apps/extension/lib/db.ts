@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Attempt, Problem, Settings } from "@leettrack/core";
+import type { Attempt, CustomList, Problem, Settings } from "@leettrack/core";
 import { browser } from "wxt/browser";
 import type { Repo, SessionStore } from "./repo";
 import type { AttemptSession } from "./types";
@@ -50,6 +50,12 @@ export const idbRepo: Repo = {
   },
   async putSettings(settings) {
     await (await db()).put("kv", settings, "settings");
+  },
+  async getCustomLists() {
+    return ((await (await db()).get("kv", "customLists")) as CustomList[] | undefined) ?? [];
+  },
+  async putCustomLists(lists) {
+    await (await db()).put("kv", lists, "customLists");
   },
 };
 

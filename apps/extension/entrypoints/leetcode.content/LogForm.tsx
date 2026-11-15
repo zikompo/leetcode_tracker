@@ -102,6 +102,30 @@ function Segmented<T extends string | number>({
   );
 }
 
+function ComplexitySummary({
+  value,
+  source,
+  name,
+  onChange,
+}: {
+  value: Complexity | undefined;
+  source: string;
+  name: string;
+  onChange(): void;
+}) {
+  return (
+    <p className="lt-cx-summary" aria-label={`${name} complexity`}>
+      <span>
+        <strong>{value?.time ?? "?"}</strong> time · <strong>{value?.space ?? "?"}</strong> space
+      </span>
+      <span className="lt-hint">{source}</span>
+      <button type="button" className="lt-link" onClick={onChange}>
+        Change
+      </button>
+    </p>
+  );
+}
+
 function SuggestionStatus({
   checkpoint,
   analyzing,
@@ -159,9 +183,34 @@ export function LogForm({
   const [showErrors, setShowErrors] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showSuggested, setShowSuggested] = useState(false);
+  const [patternsTouched, setPatternsTouched] = useState(false);
+  /** After Accepted the form starts as a one-tap summary; this opens the full form. */
+  const [detailed, setDetailed] = useState(false);
+  /** Solutions whose suggested complexity the user opened up to change. */
+  const [editingCx, setEditingCx] = useState<number[]>([]);
 
   const update = (patch: Partial<AttemptDraft>) => setDraft((d) => ({ ...d, ...patch }));
-  const solved = draft.outcome && draft.outcome !== "not_solved";
+  // After an Accepted the likely answers are filled in; anything the user picks wins.
+  const hasAccepted = session.submissions.some((s) => s.status === "Accepted");
+  const defaultOutcome: Outcome | undefined = hasAccepted
+    ? session.viewedSolutionDetected
+      ? "solved_with_help"
+      : "solved_independently"
+    : undefined;
+  const outcome = draft.outcome ?? defaultOutcome;
+  const helpLevel =
+    draft.helpLevel ??
+    (outcome === "solved_with_help" ? suggestHelpLevel(session.viewedSolutionDetected) : undefined);
+  const solved = outcome && outcome !== "not_solved";
+  // Once solved, suggested patterns are no longer spoilers (spec 4.4): start from them.
+  const autoPatterns = hasAccepted
+    ? resolvedSuggestions(problem.suggestedPatterns, patternPrefs)
+    : [];
+  const patterns = patternsTouched || draft.patterns.length > 0 ? draft.patterns : autoPatterns;
+  const setPatterns = (next: string[]) => {
+    setPatternsTouched(true);
+    update({ patterns: next });
+  };
   const checkpoints = session.checkpoints ?? [];
 
   // A model's suggestion fills in anything the user hasn't set; their own choice always wins.
@@ -178,12 +227,17 @@ export function LogForm({
         ? "optimal"
         : "suboptimal"
       : undefined;
-  const optimality = draft.optimality ?? (solved ? suggestedOptimality : undefined);
+  const optimality =
+    draft.optimality ??
+    (solved ? (suggestedOptimality ?? (hasAccepted ? "unsure" : undefined)) : undefined);
   const complexities =
     checkpoints.length > 0 ? checkpoints.map((_, i) => complexityAt(i) ?? {}) : draft.complexities;
 
   const effective: AttemptDraft = {
     ...draft,
+    patterns,
+    ...(outcome ? { outcome } : {}),
+    ...(helpLevel ? { helpLevel } : {}),
     ...(optimality ? { optimality } : {}),
     ...(complexities ? { complexities } : {}),
     ...(optimalComplexity ? { optimalComplexity } : {}),
@@ -212,6 +266,7 @@ export function LogForm({
   const submit = () => {
     if (Object.keys(errors).length > 0) {
       setShowErrors(true);
+      setDetailed(true);
       return;
     }
     onSave(finalDraft);
@@ -223,11 +278,13 @@ export function LogForm({
     1000;
   const lastCheckpoint = checkpoints.at(-1);
   const suggestions = resolvedSuggestions(problem.suggestedPatterns, patternPrefs).filter(
-    (id) => !draft.patterns.includes(id),
+    (id) => !patterns.includes(id),
   );
+  const quick = hasAccepted && !detailed;
+  const leetcodeTags = problem.problem?.leetcodeTopics ?? [];
   const atCheckpoint = stopped && lastCheckpoint?.activeSeconds === session.activeSeconds;
   const accepted = session.submissions.filter((s) => s.status === "Accepted").length;
-  const showComplexity = draft.outcome !== "not_solved" && (solved || checkpoints.length > 0);
+  const showComplexity = outcome !== "not_solved" && (solved || checkpoints.length > 0);
 
   const setComplexity = (i: number, c: Complexity) => {
     const complexities = [...(draft.complexities ?? [])];
@@ -309,14 +366,25 @@ export function LogForm({
                   </button>
                 )}
               </div>
-              {showComplexity && (
+              {showComplexity && c.suggestion && !editingCx.includes(i) ? (
+                <ComplexitySummary
+                  value={complexityAt(i)}
+                  source={
+                    draft.complexities?.[i] !== undefined
+                      ? "edited by you"
+                      : `suggested by ${c.suggestion.model}`
+                  }
+                  name={`Solution ${i + 1}`}
+                  onChange={() => setEditingCx((e) => [...e, i])}
+                />
+              ) : showComplexity ? (
                 <ComplexityPicker
                   name={`Solution ${i + 1}`}
                   value={complexityAt(i)}
                   onChange={(c) => setComplexity(i, c)}
                 />
-              )}
-              {showComplexity && (
+              ) : null}
+              {showComplexity && (!c.suggestion || editingCx.includes(i)) && (
                 <SuggestionStatus
                   checkpoint={c}
                   analyzing={analyzing.includes(c.at)}
@@ -336,202 +404,272 @@ export function LogForm({
         </p>
       )}
 
-      <dl className="lt-observed">
-        <div>
-          <dt>Total time</dt>
-          <dd>{formatDuration(totalSeconds)}</dd>
-        </div>
-        <div>
-          <dt>Submissions</dt>
-          <dd title={session.submissions.map((s) => s.status).join(", ")}>
-            {session.submissions.length}
-            {session.submissions.length > 0 && ` (${accepted} AC)`}
-          </dd>
-        </div>
-        <div>
-          <dt>Language</dt>
-          <dd>{session.language ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Solution viewed</dt>
-          <dd>{session.viewedSolutionDetected ? "Yes" : "No"}</dd>
-        </div>
-      </dl>
-
-      <Segmented
-        label="Outcome"
-        options={OUTCOMES}
-        value={draft.outcome}
-        onChange={chooseOutcome}
-        error={err("outcome")}
-      />
-
-      {draft.outcome === "solved_with_help" && (
-        <Segmented
-          label="Most help used"
-          options={HELP}
-          value={draft.helpLevel}
-          onChange={(helpLevel) => update({ helpLevel })}
-          error={err("helpLevel")}
-        />
+      {quick && (
+        <section className="lt-quick" aria-label="Attempt summary">
+          <dl>
+            <div>
+              <dt>Outcome</dt>
+              <dd>
+                {OUTCOMES.find(([v]) => v === outcome)?.[1]}
+                {outcome === "solved_with_help" && helpLevel
+                  ? ` · ${HELP.find(([v]) => v === helpLevel)?.[1]}`
+                  : ""}
+              </dd>
+            </div>
+            {solved && (
+              <div>
+                <dt>Optimality</dt>
+                <dd>
+                  {OPTIMALITY.find(([v]) => v === optimality)?.[1]}
+                  {optimality === suggestedOptimality && suggestedOptimality && (
+                    <span className="lt-hint"> · from the suggested complexity</span>
+                  )}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>Confidence</dt>
+              <dd>{rating ? RATING_LABELS[rating] : "—"}</dd>
+            </div>
+            <div>
+              <dt>Patterns</dt>
+              <dd>
+                {patterns.length
+                  ? patterns.map((id) => patternName(id, patternPrefs)).join(", ")
+                  : "none"}
+              </dd>
+            </div>
+            {leetcodeTags.length > 0 && (
+              <div>
+                <dt>LeetCode tags</dt>
+                <dd className="lt-hint">{leetcodeTags.join(", ")}</dd>
+              </div>
+            )}
+          </dl>
+          {isFirst && (
+            <label className="lt-check">
+              <input
+                type="checkbox"
+                checked={draft.seenBefore ?? false}
+                onChange={(e) => update({ seenBefore: e.target.checked })}
+              />
+              I&apos;ve seen this problem before
+            </label>
+          )}
+        </section>
       )}
 
-      {solved && (
-        <Segmented
-          label="Optimality"
-          options={OPTIMALITY}
-          value={optimality}
-          onChange={(optimality) => update({ optimality })}
-          error={err("optimality")}
-          suggested={suggestedOptimality}
-        />
-      )}
+      {!quick && (
+        <>
+          <dl className="lt-observed">
+            <div>
+              <dt>Total time</dt>
+              <dd>{formatDuration(totalSeconds)}</dd>
+            </div>
+            <div>
+              <dt>Submissions</dt>
+              <dd title={session.submissions.map((s) => s.status).join(", ")}>
+                {session.submissions.length}
+                {session.submissions.length > 0 && ` (${accepted} AC)`}
+              </dd>
+            </div>
+            <div>
+              <dt>Language</dt>
+              <dd>{session.language ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>Solution viewed</dt>
+              <dd>{session.viewedSolutionDetected ? "Yes" : "No"}</dd>
+            </div>
+          </dl>
 
-      {solved && checkpoints.length === 0 && (
-        <div className="lt-field">
-          <span className="lt-label">Complexity</span>
-          <ComplexityPicker
-            name="Solution"
-            value={draft.complexities?.[0]}
-            onChange={(c) => setComplexity(0, c)}
+          <Segmented
+            label="Outcome"
+            options={OUTCOMES}
+            value={outcome}
+            onChange={chooseOutcome}
+            error={err("outcome")}
+            suggested={defaultOutcome}
           />
-        </div>
-      )}
 
-      {solved && optimality === "suboptimal" && (
-        <div className="lt-field">
-          <span className="lt-label">
-            Optimal complexity <span className="lt-hint">optional</span>
-          </span>
-          <ComplexityPicker
-            name="Optimal"
-            value={optimalComplexity}
-            onChange={(optimalComplexity) => update({ optimalComplexity })}
-          />
-        </div>
-      )}
+          {outcome === "solved_with_help" && (
+            <Segmented
+              label="Most help used"
+              options={HELP}
+              value={helpLevel}
+              onChange={(helpLevel) => update({ helpLevel })}
+              error={err("helpLevel")}
+            />
+          )}
 
-      <fieldset className="lt-field">
-        <legend className="lt-label">Confidence</legend>
-        <div className="lt-ratings" role="radiogroup" aria-label="Confidence">
-          {RATINGS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              role="radio"
-              aria-checked={rating === r}
-              className={`lt-rating lt-rating-${r}`}
-              onClick={() => {
-                setRatingTouched(true);
-                update({ rating: r });
-              }}
-            >
-              {RATING_LABELS[r]}
-              {suggested === r && <span className="lt-suggested">suggested</span>}
-            </button>
-          ))}
-        </div>
-        {err("rating") && <p className="lt-error">{err("rating")}</p>}
-      </fieldset>
+          {solved && (
+            <Segmented
+              label="Optimality"
+              options={OPTIMALITY}
+              value={optimality}
+              onChange={(optimality) => update({ optimality })}
+              error={err("optimality")}
+              suggested={suggestedOptimality}
+            />
+          )}
 
-      <fieldset className="lt-field">
-        <legend className="lt-label">Patterns</legend>
-        <TagInput
-          value={draft.patterns}
-          patternPrefs={patternPrefs}
-          onChange={(patterns) => update({ patterns })}
-          onCreate={onCreatePattern}
-        />
-        {/* Spec 4.4: suggestions would give the approach away, so only after an outcome. */}
-        {draft.outcome && suggestions.length > 0 && !showSuggested && (
-          <button type="button" className="lt-link" onClick={() => setShowSuggested(true)}>
-            Show suggested patterns
-          </button>
-        )}
-        {draft.outcome && showSuggested && (
-          <div className="lt-suggest-row" aria-label="Suggested patterns">
-            {suggestions.length === 0 && <span className="lt-hint">All suggestions added.</span>}
-            {suggestions.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className="lt-chip lt-chip-create"
-                onClick={() => update({ patterns: [...draft.patterns, id] })}
-              >
-                + {patternName(id, patternPrefs)}
+          {solved && checkpoints.length === 0 && (
+            <div className="lt-field">
+              <span className="lt-label">Complexity</span>
+              <ComplexityPicker
+                name="Solution"
+                value={draft.complexities?.[0]}
+                onChange={(c) => setComplexity(0, c)}
+              />
+            </div>
+          )}
+
+          {solved && optimality === "suboptimal" && (
+            <div className="lt-field">
+              <span className="lt-label">
+                Optimal complexity <span className="lt-hint">optional</span>
+              </span>
+              <ComplexityPicker
+                name="Optimal"
+                value={optimalComplexity}
+                onChange={(optimalComplexity) => update({ optimalComplexity })}
+              />
+            </div>
+          )}
+
+          <fieldset className="lt-field">
+            <legend className="lt-label">Confidence</legend>
+            <div className="lt-ratings" role="radiogroup" aria-label="Confidence">
+              {RATINGS.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  role="radio"
+                  aria-checked={rating === r}
+                  className={`lt-rating lt-rating-${r}`}
+                  onClick={() => {
+                    setRatingTouched(true);
+                    update({ rating: r });
+                  }}
+                >
+                  {RATING_LABELS[r]}
+                  {suggested === r && <span className="lt-suggested">suggested</span>}
+                </button>
+              ))}
+            </div>
+            {err("rating") && <p className="lt-error">{err("rating")}</p>}
+          </fieldset>
+
+          <fieldset className="lt-field">
+            <legend className="lt-label">Patterns</legend>
+            <TagInput
+              value={patterns}
+              patternPrefs={patternPrefs}
+              onChange={setPatterns}
+              onCreate={onCreatePattern}
+            />
+            {leetcodeTags.length > 0 && outcome && (
+              <span className="lt-hint">LeetCode tags: {leetcodeTags.join(", ")}</span>
+            )}
+            {/* Spec 4.4: suggestions would give the approach away, so only after an outcome. */}
+            {outcome && suggestions.length > 0 && !showSuggested && (
+              <button type="button" className="lt-link" onClick={() => setShowSuggested(true)}>
+                Show suggested patterns
               </button>
-            ))}
+            )}
+            {outcome && showSuggested && (
+              <div className="lt-suggest-row" aria-label="Suggested patterns">
+                {suggestions.length === 0 && (
+                  <span className="lt-hint">All suggestions added.</span>
+                )}
+                {suggestions.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className="lt-chip lt-chip-create"
+                    onClick={() => setPatterns([...patterns, id])}
+                  >
+                    + {patternName(id, patternPrefs)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </fieldset>
+
+          <label className="lt-field">
+            <span className="lt-label">Pattern clue: what told you which pattern to use?</span>
+            <input
+              className="lt-input"
+              value={draft.patternClue ?? ""}
+              onChange={(e) => update({ patternClue: e.target.value })}
+            />
+          </label>
+
+          <label className="lt-field">
+            <span className="lt-label">Where I got stuck</span>
+            <input
+              className="lt-input"
+              value={draft.stuckNote ?? ""}
+              onChange={(e) => update({ stuckNote: e.target.value })}
+            />
+          </label>
+
+          <label className="lt-field">
+            <span className="lt-label">
+              Notes <span className="lt-hint">Markdown</span>
+            </span>
+            <textarea
+              className="lt-input lt-textarea"
+              rows={4}
+              value={draft.notes ?? ""}
+              onChange={(e) => update({ notes: e.target.value })}
+            />
+          </label>
+
+          <div className="lt-field">
+            <button
+              type="button"
+              className="lt-link"
+              onClick={() => setShowCode((s) => !s)}
+              aria-expanded={showCode}
+            >
+              {showCode ? "Hide code" : session.code ? "Show captured code" : "Add code"}
+            </button>
+            {showCode && (
+              <textarea
+                className="lt-input lt-textarea lt-code"
+                rows={8}
+                spellCheck={false}
+                value={codeTouched ? (draft.code ?? "") : (session.code ?? "")}
+                onChange={(e) => {
+                  setCodeTouched(true);
+                  update({ code: e.target.value });
+                }}
+              />
+            )}
           </div>
-        )}
-      </fieldset>
 
-      <label className="lt-field">
-        <span className="lt-label">Pattern clue: what told you which pattern to use?</span>
-        <input
-          className="lt-input"
-          value={draft.patternClue ?? ""}
-          onChange={(e) => update({ patternClue: e.target.value })}
-        />
-      </label>
-
-      <label className="lt-field">
-        <span className="lt-label">Where I got stuck</span>
-        <input
-          className="lt-input"
-          value={draft.stuckNote ?? ""}
-          onChange={(e) => update({ stuckNote: e.target.value })}
-        />
-      </label>
-
-      <label className="lt-field">
-        <span className="lt-label">
-          Notes <span className="lt-hint">Markdown</span>
-        </span>
-        <textarea
-          className="lt-input lt-textarea"
-          rows={4}
-          value={draft.notes ?? ""}
-          onChange={(e) => update({ notes: e.target.value })}
-        />
-      </label>
-
-      <div className="lt-field">
-        <button
-          type="button"
-          className="lt-link"
-          onClick={() => setShowCode((s) => !s)}
-          aria-expanded={showCode}
-        >
-          {showCode ? "Hide code" : session.code ? "Show captured code" : "Add code"}
-        </button>
-        {showCode && (
-          <textarea
-            className="lt-input lt-textarea lt-code"
-            rows={8}
-            spellCheck={false}
-            value={codeTouched ? (draft.code ?? "") : (session.code ?? "")}
-            onChange={(e) => {
-              setCodeTouched(true);
-              update({ code: e.target.value });
-            }}
-          />
-        )}
-      </div>
-
-      {isFirst && (
-        <label className="lt-check">
-          <input
-            type="checkbox"
-            checked={draft.seenBefore ?? false}
-            onChange={(e) => update({ seenBefore: e.target.checked })}
-          />
-          I've seen this problem before (not a cold attempt)
-        </label>
+          {isFirst && (
+            <label className="lt-check">
+              <input
+                type="checkbox"
+                checked={draft.seenBefore ?? false}
+                onChange={(e) => update({ seenBefore: e.target.checked })}
+              />
+              I've seen this problem before (not a cold attempt)
+            </label>
+          )}
+        </>
       )}
 
       <div className="lt-actions">
         {showErrors && Object.keys(errors).length > 0 && (
           <span className="lt-error">Fill in the highlighted fields.</span>
+        )}
+        {quick && (
+          <button type="button" className="lt-btn lt-btn-ghost" onClick={() => setDetailed(true)}>
+            Edit details
+          </button>
         )}
         <button type="submit" className="lt-btn lt-btn-primary" disabled={saving}>
           {saving ? "Saving…" : "Save attempt"}

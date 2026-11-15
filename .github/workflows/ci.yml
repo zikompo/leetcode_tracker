@@ -21,3 +21,9 @@ jobs:
       - run: pnpm --filter @leettrack/web build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/extension
+      - run: pnpm --filter @leettrack/extension e2e
+      - run: pnpm --filter @leettrack/web e2e
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

@@ -1,0 +1,21 @@
+{
+  "name": "@leettrack/insights",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@leettrack/core": "workspace:*",
+    "@leettrack/seed": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  },
+  "sideEffects": false
+}

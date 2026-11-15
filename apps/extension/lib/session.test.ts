@@ -43,4 +43,9 @@ describe("mergeSessions", () => {
     expect(merged.checkpoints).toEqual([{ at: "b", activeSeconds: 302 }]);
     expect(merged).toMatchObject({ stoppedAt: live.stoppedAt, code: "class Solution: ..." });
   });
+  it("doesn't double a session that was saved and read back", () => {
+    const live = base({ submissionIds: ["1"], submissions: [{ at: "a", status: "Accepted" }] });
+    const stored = { ...live, activeSeconds: live.activeSeconds - 1 };
+    expect(mergeSessions(stored, live)).toBe(live);
+  });
 });

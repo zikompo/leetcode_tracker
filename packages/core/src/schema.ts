@@ -85,6 +85,14 @@ export const attemptSchema = z.object({
   updatedAt: isoDate,
 });
 
+export const customListSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  slugs: z.array(z.string()),
+  deleted: z.boolean().optional(),
+  updatedAt: isoDate,
+});
+
 export const settingsSchema = z.object({
   panelAutoOpen: z.enum(["accepted", "every_submission", "manual"]),
   customPatterns: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
@@ -96,5 +104,28 @@ export const settingsSchema = z.object({
   desiredRetention: z.number().min(0.7).max(0.97).default(0.9),
   activeLists: z.array(z.string()).default(["neetcode150"]),
   hideTopicsWhileSolving: z.boolean().default(false),
+  github: z
+    .object({
+      owner: z.string().min(1),
+      repo: z.string().min(1),
+      branch: z.string().min(1),
+      includeNotes: z.boolean().default(true),
+    })
+    .optional(),
+  // Added in M6.
+  targetDates: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().min(1).max(80),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        listIds: z.array(z.string()),
+        createdAt: isoDate.optional(),
+      }),
+    )
+    .optional(),
+  targetBufferDays: z.number().int().min(0).max(14).default(2),
+  targetNoNewDays: z.number().int().min(0).max(14).default(2),
+  targetRetention: z.number().min(0.7).max(0.99).default(0.95),
   updatedAt: isoDate,
 });

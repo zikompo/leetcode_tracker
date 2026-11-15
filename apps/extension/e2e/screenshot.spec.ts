@@ -1,36 +1,57 @@
 import { test } from "./fixtures";
 
-// Not part of the suite: run with SCREENSHOT_DIR set to capture the panel for visual review.
+// Not part of the suite: run with SCREENSHOT_DIR set to capture the panel and the extension's
+// pages for visual review.
 test.skip(!process.env.SCREENSHOT_DIR, "visual capture only");
 
-test("capture panel", async ({ context }) => {
+test("capture extension pages", async ({ context, extensionId }) => {
+  const dir = process.env.SCREENSHOT_DIR!;
   const page = await context.newPage();
-  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("https://leetcode.com/problems/two-sum/description/");
-  await page.click("#submit-wa");
   await page.click("#submit-ac");
-  const panel = page.getByRole("region", { name: "LeetTrack" });
-  await panel.getByRole("button", { name: "Keep optimizing" }).click();
-  await page.waitForTimeout(2200);
+  await page
+    .getByRole("region", { name: "LeetTrack" })
+    .getByRole("button", { name: "Save attempt" })
+    .click();
+  await page.getByText("Attempt saved.").waitFor();
+  for (const scheme of ["dark", "light"] as const) {
+    const p = await context.newPage();
+    await p.emulateMedia({ colorScheme: scheme });
+    await p.setViewportSize({ width: 380, height: 640 });
+    await p.goto(`chrome-extension://${extensionId}/popup.html`);
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: `${dir}/ext-popup-${scheme}.png` });
+    await p.setViewportSize({ width: 1200, height: 800 });
+    await p.goto(`chrome-extension://${extensionId}/dashboard.html`);
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: `${dir}/ext-dashboard-${scheme}.png` });
+    await p.goto(`chrome-extension://${extensionId}/options.html`);
+    await p.waitForTimeout(400);
+    await p.screenshot({ path: `${dir}/ext-options-${scheme}.png`, fullPage: true });
+    await p.close();
+  }
+});
+
+test("capture panel after Accepted", async ({ context }) => {
+  const dir = process.env.SCREENSHOT_DIR!;
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto("https://leetcode.com/problems/two-sum/description/");
   await page.click("#submit-ac");
-  await panel.locator(".lt-solution").nth(1).waitFor();
-  await panel.getByRole("radio", { name: "With help" }).click();
-  await panel.getByRole("radio", { name: "Hint or topic tags" }).click();
-  await panel.getByRole("radio", { name: "Suboptimal" }).click();
-  await panel.getByLabel("Add a pattern tag").fill("hash");
-  await panel.getByLabel("Add a pattern tag").press("Enter");
-  const cx = (name: string) => panel.getByRole("radiogroup", { name });
-  await cx("Solution 1 time complexity").getByRole("radio", { name: "O(n²)" }).click();
-  await cx("Solution 2 time complexity").getByRole("radio", { name: "O(n log n)" }).click();
-  await cx("Solution 2 space complexity").getByRole("radio", { name: "O(n)", exact: true }).click();
-  await panel.locator(".lt-body").evaluate((el) => (el.scrollTop = 0));
-  await page.waitForTimeout(200);
-  await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/panel-top.png` });
-  await panel.locator(".lt-body").evaluate((el) => (el.scrollTop = 420));
-  await page.waitForTimeout(200);
-  await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/panel-light.png` });
+  await page
+    .getByRole("region", { name: "LeetTrack" })
+    .getByRole("button", { name: "Save attempt" })
+    .waitFor();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${dir}/panel-quick-light.png` });
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await page.evaluate(() => (document.body.style.background = "#1a1a1a"));
-  await page.waitForTimeout(200);
-  await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/panel-dark.png` });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${dir}/panel-quick-dark.png` });
+  await page
+    .getByRole("region", { name: "LeetTrack" })
+    .getByRole("button", { name: "Edit details" })
+    .click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${dir}/panel-detail-dark.png` });
 });

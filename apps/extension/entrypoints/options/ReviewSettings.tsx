@@ -1,4 +1,5 @@
-import type { Settings } from "@leettrack/core";
+import { useEffect, useState } from "react";
+import type { CustomList, Settings } from "@leettrack/core";
 import { LISTS } from "@leettrack/seed";
 import { call } from "@/lib/messaging";
 
@@ -17,6 +18,13 @@ export function ReviewSettings({
   settings: Settings;
   onChange(s: Settings): void;
 }) {
+  const [customLists, setCustomLists] = useState<CustomList[]>([]);
+  useEffect(() => {
+    void call("getCustomLists")
+      .then(setCustomLists)
+      .catch(() => {});
+  }, []);
+  const allLists = [...LISTS, ...customLists.map((l) => ({ id: l.id, name: l.name }))];
   const save = async (patch: Partial<Omit<Settings, "updatedAt">>) => {
     onChange({ ...settings, ...patch }); // show it at once; the saved copy follows
     onChange(await call("setSettings", patch));
@@ -36,9 +44,9 @@ export function ReviewSettings({
   const toggleList = (id: string, on: boolean) =>
     void save({
       // Keep the canonical order so priority is predictable.
-      activeLists: LISTS.map((l) => l.id).filter((l) =>
-        l === id ? on : settings.activeLists.includes(l),
-      ),
+      activeLists: allLists
+        .map((l) => l.id)
+        .filter((l) => (l === id ? on : settings.activeLists.includes(l))),
     });
 
   return (
@@ -74,7 +82,7 @@ export function ReviewSettings({
 
       <fieldset className="field">
         <span>New problems come from</span>
-        {LISTS.map((l) => (
+        {allLists.map((l) => (
           <label key={l.id} className="check">
             <input
               type="checkbox"

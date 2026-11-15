@@ -29,13 +29,14 @@ type Row = { data: { updatedAt: string } & Record<string, unknown>; server_updat
  */
 export function fakeSupabase() {
   const tables: Record<
-    "attempts" | "user_problems" | "settings" | "custom_lists",
+    "attempts" | "user_problems" | "settings" | "custom_lists" | "mock_interviews",
     Map<string, Row>
   > = {
     attempts: new Map(),
     user_problems: new Map(),
     settings: new Map(),
     custom_lists: new Map(),
+    mock_interviews: new Map(),
   };
   let tick = 0;
   const stamp = () => new Date(Date.now() + ++tick).toISOString();
@@ -86,6 +87,10 @@ export function fakeSupabase() {
         settings: p.p_settings ? upsert("settings", "me", p.p_settings as Row["data"]) : 0,
         lists: (p.p_lists as Array<Row["data"]>).reduce(
           (k, l) => k + upsert("custom_lists", String(l.id), l),
+          0,
+        ),
+        mocks: ((p.p_mocks ?? []) as Array<Row["data"]>).reduce(
+          (k, m) => k + upsert("mock_interviews", String(m.id), m),
           0,
         ),
       };

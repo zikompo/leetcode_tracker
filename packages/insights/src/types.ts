@@ -9,6 +9,7 @@ import type {
   Problem,
   ProblemStatus,
   Settings,
+  MockInterview,
 } from "@leettrack/core";
 
 /** Everything a user has, wherever it's stored (IndexedDB in the extension, Postgres online). */
@@ -17,6 +18,7 @@ export interface DataSet {
   attempts: readonly Attempt[];
   settings: Settings;
   customLists?: readonly CustomList[];
+  mocks?: readonly MockInterview[];
 }
 
 /** A problem's FSRS card, as the UI needs it. Recomputed from attempts on every read. */

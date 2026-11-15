@@ -5,10 +5,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   DEFAULT_SETTINGS,
+  mockInterviewSchema,
   parseExport,
   problemSchema,
   settingsSchema,
   type CustomList,
+  type MockInterview,
+  type MockOutcome,
   type Problem,
   type Settings,
   type StatusOverride,
@@ -31,6 +34,7 @@ type Push = {
   problems?: unknown[];
   settings?: unknown;
   lists?: unknown[];
+  mocks?: unknown[];
 };
 
 /** Write through the server's newer-wins function, the same path the extension syncs with. */
@@ -41,6 +45,7 @@ async function push(data: Push) {
     p_problems: data.problems ?? [],
     p_settings: data.settings ?? null,
     p_lists: data.lists ?? [],
+    p_mocks: data.mocks ?? [],
   });
   if (error) throw new Error(error.message);
 }
@@ -244,13 +249,13 @@ export async function importJson(json: string): Promise<ActionResult> {
   const parsed = parseExport(json);
   if (!parsed.ok) return { ok: false, message: parsed.error };
   try {
-    const { attempts, problems, settings, customLists } = parsed.data;
+    const { attempts, problems, settings, customLists, mocks } = parsed.data;
     // Batches keep each request a reasonable size.
     for (let i = 0; i < Math.max(attempts.length, problems.length, 1); i += 500) {
       await push({
         attempts: attempts.slice(i, i + 500),
         problems: problems.slice(i, i + 500),
-        ...(i === 0 ? { settings, lists: customLists ?? [] } : {}),
+        ...(i === 0 ? { settings, lists: customLists ?? [], mocks: mocks ?? [] } : {}),
       });
     }
     revalidatePath("/", "layout");
@@ -258,6 +263,60 @@ export async function importJson(json: string): Promise<ActionResult> {
       ok: true,
       message: `Imported ${attempts.length} attempts and ${problems.length} problems. Anything older than what's here was skipped.`,
     };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+async function currentMock(id: string): Promise<MockInterview | undefined> {
+  const supabase = await supabaseServer();
+  const { data } = await supabase.from("mock_interviews").select("data").eq("id", id).maybeSingle();
+  const parsed = mockInterviewSchema.safeParse(data?.data);
+  return parsed.success ? (parsed.data as MockInterview) : undefined;
+}
+
+/** Log or edit a mock interview (spec 7.1, page 9). */
+export async function saveMock(input: {
+  id?: string;
+  date: string;
+  problem: string;
+  outcome: MockOutcome | "";
+  notes: string;
+}): Promise<ActionResult> {
+  if (!DAY.test(input.date)) return { ok: false, message: "Pick a date." };
+  const notes = input.notes.trim();
+  const problemRef = input.problem.trim();
+  if (!notes && !problemRef) return { ok: false, message: "Add the problem or some notes." };
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const existing = input.id ? await currentMock(input.id) : undefined;
+    const problem = problemRef ? (parseProblemRef(problemRef) ?? problemRef.slice(0, 200)) : "";
+    const mock: MockInterview = {
+      id: existing?.id ?? crypto.randomUUID(),
+      date: input.date,
+      notes: notes.slice(0, 10_000),
+      ...(problem ? { problem } : {}),
+      ...(input.outcome ? { outcome: input.outcome } : {}),
+      updatedAt: now(),
+    };
+    await push({ mocks: [mock] });
+    revalidatePath("/", "layout");
+    return { ok: true, message: existing ? "Saved." : "Mock logged." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function deleteMock(id: string): Promise<ActionResult> {
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const existing = await currentMock(id);
+    if (!existing) return { ok: false, message: "That mock is already gone." };
+    await push({ mocks: [{ ...existing, deleted: true, updatedAt: now() }] });
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Deleted." };
   } catch (err) {
     return fail(err);
   }

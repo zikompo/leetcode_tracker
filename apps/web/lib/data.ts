@@ -4,10 +4,12 @@ import {
   DEFAULT_SETTINGS,
   attemptSchema,
   customListSchema,
+  mockInterviewSchema,
   problemSchema,
   settingsSchema,
   type Attempt,
   type CustomList,
+  type MockInterview,
   type Problem,
   type Settings,
 } from "@leettrack/core";
@@ -67,17 +69,19 @@ async function selectAll<S extends z.ZodType>(table: string, schema: S): Promise
 
 export async function loadDataSet(): Promise<DataSet> {
   if (DEMO) return demoData();
-  const [problems, attempts, settings, customLists] = await Promise.all([
+  const [problems, attempts, settings, customLists, mocks] = await Promise.all([
     selectAll("user_problems", problemSchema),
     selectAll("attempts", attemptSchema),
     selectAll("settings", settingsSchema),
     selectAll("custom_lists", customListSchema),
+    selectAll("mock_interviews", mockInterviewSchema),
   ]);
   return {
     problems: problems as Problem[],
     attempts: attempts as Attempt[],
     settings: (settings[0] as Settings | undefined) ?? DEFAULT_SETTINGS,
     customLists: customLists as CustomList[],
+    mocks: mocks as MockInterview[],
   };
 }
 

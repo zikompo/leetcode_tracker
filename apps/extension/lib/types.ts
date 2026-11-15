@@ -52,6 +52,8 @@ export interface ImportSummary {
   attemptsAdded: number;
   attemptsUpdated: number;
   problemsMerged: number;
+  /** Mock interviews added or changed. */
+  mocksMerged: number;
 }
 
 /** Every request the background service worker answers. */

@@ -211,5 +211,33 @@ export function demoData(now: Date = new Date()): DataSet {
       updatedAt: now.toISOString(),
     },
     customLists: lists,
+    mocks: [
+      {
+        id: "demo-mock-1",
+        date: dateKey(new Date(now.getTime() - 26 * DAY)),
+        problem: "longest-substring-with-at-most-k-distinct-characters",
+        outcome: "mixed",
+        notes: "Got there with two pointers, but took the full 45 minutes. Revise sliding window.",
+        updatedAt: now.toISOString(),
+      },
+      {
+        id: "demo-mock-2",
+        date: dateKey(new Date(now.getTime() - 12 * DAY)),
+        problem: "binary-tree-preorder-traversal",
+        outcome: "passed",
+        notes:
+          "Solved; the follow-up wanted O(1) space with parent pointers. Only saw it at the end.",
+        updatedAt: now.toISOString(),
+      },
+      {
+        id: "demo-mock-3",
+        date: dateKey(new Date(now.getTime() - 4 * DAY)),
+        problem: "Minimum of V-shaped arrays",
+        outcome: "struggled",
+        notes:
+          "First part fine; missed that binary search finds the minimum. Second part unfinished.",
+        updatedAt: now.toISOString(),
+      },
+    ],
   };
 }

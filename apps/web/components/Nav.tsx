@@ -10,6 +10,7 @@ const LINKS: Array<[string, string]> = [
   ["/patterns", "Patterns"],
   ["/lists", "Lists"],
   ["/plan", "Plan"],
+  ["/mocks", "Mocks"],
   ["/clues", "Clues"],
   ["/settings", "Settings"],
 ];

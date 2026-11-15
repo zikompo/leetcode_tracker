@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Attempt, CustomList, Problem, Settings } from "@leettrack/core";
+import type { Attempt, CustomList, MockInterview, Problem, Settings } from "@leettrack/core";
 import { browser } from "wxt/browser";
 import type { Repo, SessionStore } from "./repo";
 import type { AttemptSession } from "./types";
@@ -56,6 +56,12 @@ export const idbRepo: Repo = {
   },
   async putCustomLists(lists) {
     await (await db()).put("kv", lists, "customLists");
+  },
+  async getMocks() {
+    return ((await (await db()).get("kv", "mocks")) as MockInterview[] | undefined) ?? [];
+  },
+  async putMocks(mocks) {
+    await (await db()).put("kv", mocks, "mocks");
   },
 };
 

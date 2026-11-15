@@ -152,6 +152,21 @@ export interface AttemptDraft {
 }
 
 /** A user-made problem list (spec 12.1). Deleted lists stay as tombstones so deletes sync. */
+export type MockOutcome = "passed" | "mixed" | "struggled";
+
+/** A mock interview (spec 7.1, page 9). Synced; a delete is a tombstone. */
+export interface MockInterview {
+  id: string;
+  /** Local calendar date, YYYY-MM-DD. */
+  date: string;
+  /** A LeetCode slug, or a short description when it wasn't a LeetCode problem. */
+  problem?: string;
+  outcome?: MockOutcome;
+  notes: string;
+  deleted?: boolean;
+  updatedAt: string;
+}
+
 export interface CustomList {
   id: string;
   name: string;

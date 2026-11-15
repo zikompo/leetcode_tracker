@@ -16,9 +16,11 @@ import { cn } from "@leettrack/ui/lib/utils";
 import { PageHead } from "@/components/PageHead";
 import { QueueList } from "@/components/QueueList";
 import { loadSnapshot } from "@/lib/data";
-import { pct } from "@/lib/util";
+import { formatDate, pct } from "@/lib/util";
 
 export const metadata = { title: "Dashboard" };
+
+const MOCK_OUTCOME = { passed: "went well", mixed: "mixed", struggled: "struggled" } as const;
 
 /** Reviews listed before the rest fold away, so Today stays about as tall as the side column. */
 const SHOWN_REVIEWS = 10;
@@ -36,6 +38,7 @@ export default async function DashboardPage() {
   const reviews = queue.items.filter((i) => i.kind === "review");
   const fresh = queue.items.filter((i) => i.kind === "new");
   const upcoming = countdowns(snap);
+  const latestMock = snap.mocks[0];
 
   // The pattern cards sit under Today on a light day, and move to the side column on a heavy
   // one, so the two columns come out about the same height.
@@ -105,30 +108,49 @@ export default async function DashboardPage() {
           />
         </Panel>
         <div className="flex flex-col gap-4 max-lg:contents">
-          {upcoming.length > 0 && (
+          {(upcoming.length > 0 || latestMock) && (
             <Panel className="max-lg:order-2" title="Interviews">
-              <ul className="flex flex-col gap-1">
-                {upcoming.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href="/plan"
-                      className="-mx-2 flex items-baseline gap-3 rounded-md px-2 py-1 text-foreground no-underline transition-colors hover:bg-accent hover:no-underline"
-                    >
-                      <strong className="w-10 text-right text-xl font-semibold text-primary tabular-nums">
-                        {c.daysLeft === 0 ? "Today" : c.daysLeft}
-                      </strong>{" "}
-                      <span className="min-w-0 [overflow-wrap:anywhere]">
-                        {c.daysLeft === 0 ? "" : `day${c.daysLeft === 1 ? "" : "s"} to `}
-                        {c.label}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {upcoming.length > 0 && (
+                <ul className="flex flex-col gap-1">
+                  {upcoming.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        href="/plan"
+                        className="-mx-2 flex items-baseline gap-3 rounded-md px-2 py-1 text-foreground no-underline transition-colors hover:bg-accent hover:no-underline"
+                      >
+                        <strong className="w-10 text-right text-xl font-semibold text-primary tabular-nums">
+                          {c.daysLeft === 0 ? "Today" : c.daysLeft}
+                        </strong>{" "}
+                        <span className="min-w-0 [overflow-wrap:anywhere]">
+                          {c.daysLeft === 0 ? "" : `day${c.daysLeft === 1 ? "" : "s"} to `}
+                          {c.label}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {latestMock && (
+                <Link
+                  href="/mocks"
+                  className="-mx-2 flex flex-col rounded-md px-2 py-1 text-foreground no-underline transition-colors hover:bg-accent hover:no-underline"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    Latest mock · {formatDate(latestMock.date)}
+                    {latestMock.outcome ? ` · ${MOCK_OUTCOME[latestMock.outcome]}` : ""}
+                  </span>
+                  <span className="line-clamp-2 text-sm">
+                    {latestMock.notes || latestMock.problem}
+                  </span>
+                </Link>
+              )}
             </Panel>
           )}
           <Panel
-            className={cn("flex-1 max-lg:order-3", upcoming.length === 0 && "md:col-span-2")}
+            className={cn(
+              "flex-1 max-lg:order-3",
+              upcoming.length === 0 && !latestMock && "md:col-span-2",
+            )}
             title="Summary"
           >
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">

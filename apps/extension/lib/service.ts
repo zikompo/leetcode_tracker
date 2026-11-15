@@ -4,6 +4,7 @@ import {
   buildExport,
   mergeAttempts,
   mergeCustomLists,
+  mergeMocks,
   mergeProblems,
   mergeSettings,
   parseExport,
@@ -11,6 +12,7 @@ import {
   resolvePatternIds,
   type Attempt,
   type CustomList,
+  type MockInterview,
   type Problem,
   type Settings,
 } from "@leettrack/core";
@@ -47,6 +49,7 @@ export interface IncomingData {
   attempts?: readonly Attempt[];
   settings?: Settings;
   customLists?: readonly CustomList[];
+  mocks?: readonly MockInterview[];
 }
 
 /**
@@ -54,11 +57,12 @@ export interface IncomingData {
  * last-write-wins. Shared by JSON import and sync pulls. Returns what changed.
  */
 export async function mergeIntoRepo(repo: Repo, data: IncomingData): Promise<ImportSummary> {
-  const [localAttempts, localProblems, localSettings, localLists] = await Promise.all([
+  const [localAttempts, localProblems, localSettings, localLists, localMocks] = await Promise.all([
     repo.allAttempts(),
     repo.allProblems(),
     repo.getSettings(),
     repo.getCustomLists(),
+    repo.getMocks(),
   ]);
   const localById = new Map(localAttempts.map((a) => [a.id, a]));
   const changedAttempts = mergeAttempts(localAttempts, data.attempts ?? []).filter(
@@ -78,10 +82,18 @@ export async function mergeIntoRepo(repo: Repo, data: IncomingData): Promise<Imp
   if (data.customLists?.length) {
     await repo.putCustomLists(mergeCustomLists(localLists, data.customLists));
   }
+  let mocksMerged = 0;
+  if (data.mocks?.length) {
+    const localMockById = new Map(localMocks.map((m) => [m.id, m]));
+    const merged = mergeMocks(localMocks, data.mocks);
+    mocksMerged = merged.filter((m) => localMockById.get(m.id) !== m).length;
+    if (mocksMerged) await repo.putMocks(merged);
+  }
   return {
     attemptsAdded,
     attemptsUpdated: changedAttempts.length - attemptsAdded,
     problemsMerged: changedProblems.length,
+    mocksMerged,
   };
 }
 
@@ -250,13 +262,17 @@ export function createService(
     getGauge: async () => confidenceGauge(await snapshot()),
 
     async exportData() {
-      const [problems, attempts, customLists] = await Promise.all([
+      const [problems, attempts, customLists, mocks] = await Promise.all([
         repo.allProblems(),
         repo.allAttempts(),
         repo.getCustomLists(),
+        repo.getMocks(),
       ]);
       return JSON.stringify(
-        buildExport({ problems, attempts, settings: await settings(), customLists }, clock()),
+        buildExport(
+          { problems, attempts, settings: await settings(), customLists, mocks },
+          clock(),
+        ),
         null,
         2,
       );

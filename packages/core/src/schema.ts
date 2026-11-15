@@ -85,6 +85,16 @@ export const attemptSchema = z.object({
   updatedAt: isoDate,
 });
 
+export const mockInterviewSchema = z.object({
+  id: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  problem: z.string().max(200).optional(),
+  outcome: z.enum(["passed", "mixed", "struggled"]).optional(),
+  notes: z.string().max(10_000),
+  deleted: z.boolean().optional(),
+  updatedAt: isoDate,
+});
+
 export const customListSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Attempt, CustomList, Problem, Settings } from "@leettrack/core";
+import type { Attempt, CustomList, MockInterview, Problem, Settings } from "@leettrack/core";
 import { DEFAULT_SETTINGS } from "@leettrack/core";
 import type { PullResult, Remote, SyncBatch } from "./remote";
 import { memoryRepo } from "./repo";
@@ -15,6 +15,7 @@ function fakeServer() {
     problems: new Map<string, Row<Problem>>(),
     settings: new Map<string, Row<Settings>>(),
     lists: new Map<string, Row<CustomList>>(),
+    mocks: new Map<string, Row<MockInterview>>(),
   };
   const upsert = <T extends { updatedAt: string }>(
     t: Map<string, Row<T>>,
@@ -32,6 +33,7 @@ function fakeServer() {
       b.problems.forEach((p) => upsert(tables.problems, p.slug, p));
       if (b.settings) upsert(tables.settings, "me", b.settings);
       b.lists.forEach((l) => upsert(tables.lists, l.id, l));
+      b.mocks.forEach((m) => upsert(tables.mocks, m.id, m));
     },
     async pull(since): Promise<PullResult> {
       const fresh = <T>(t: Map<string, Row<T>>) =>
@@ -41,12 +43,14 @@ function fakeServer() {
         ...fresh(tables.problems),
         ...fresh(tables.settings),
         ...fresh(tables.lists),
+        ...fresh(tables.mocks),
       ];
       const settings = fresh(tables.settings)[0]?.data;
       return {
         attempts: fresh(tables.attempts).map((r) => r.data),
         problems: fresh(tables.problems).map((r) => r.data),
         lists: fresh(tables.lists).map((r) => r.data),
+        mocks: fresh(tables.mocks).map((r) => r.data),
         ...(settings ? { settings } : {}),
         cursor:
           all
@@ -176,6 +180,28 @@ describe("sync", () => {
     await a.sync.run();
     await b.sync.run();
     expect((await b.repo.getCustomLists())[0]?.deleted).toBe(true);
+  });
+
+  it("syncs mock interviews, edits and deletes included", async () => {
+    const server = fakeServer();
+    const a = device(server.remote);
+    const b = device(server.remote);
+    const mock: MockInterview = {
+      id: "m1",
+      date: "2026-10-10",
+      notes: "two pointers",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    await a.repo.putMocks([mock]);
+    await a.sync.run();
+    await b.sync.run();
+    expect(await b.repo.getMocks()).toEqual([mock]);
+
+    await b.repo.putMocks([{ ...mock, deleted: true, updatedAt: "2026-01-02T00:00:00.000Z" }]);
+    b.clock.now = new Date("2026-02-02T00:00:00.000Z");
+    await b.sync.run();
+    await a.sync.run();
+    expect((await a.repo.getMocks())[0]?.deleted).toBe(true);
   });
 
   it("records the error and keeps its place when the server fails", async () => {

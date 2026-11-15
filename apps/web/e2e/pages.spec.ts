@@ -140,7 +140,11 @@ test("dashboard: the gauge shows today's work and problems by last rating", asyn
 test("dashboard: a countdown to each interview", async ({ page }) => {
   await page.goto("/dashboard");
   const countdowns = page.getByRole("region", { name: "Interviews" });
-  await expect(countdowns.getByRole("link")).toHaveCount(2);
+  await expect(countdowns.getByRole("link", { name: /days? to / })).toHaveCount(2);
+  await expect(countdowns.getByRole("link", { name: /Latest mock/ })).toHaveAttribute(
+    "href",
+    "/mocks",
+  );
   await expect(countdowns).toContainText("6 days to Phone screen");
   await countdowns.getByRole("link", { name: /Onsite interview/ }).click();
   await expect(page).toHaveURL(/\/plan$/);
@@ -237,6 +241,20 @@ test("text is set in Geist, code in Geist Mono", async ({ page }) => {
   expect(loaded.mono.toLowerCase()).toContain("geist");
   expect(loaded.sansLoaded).toBe(true);
   expect(loaded.monoLoaded).toBe(true);
+});
+
+test("mocks: history with outcomes, and a form to log one", async ({ page }) => {
+  await page.goto("/mocks");
+  const history = page.getByRole("region", { name: "History" });
+  await expect(history.getByRole("article")).toHaveCount(3);
+  await expect(history).toContainText("Struggled");
+  await expect(history.getByRole("link", { name: "Binary Tree Preorder Traversal" })).toBeVisible();
+  const form = page.getByRole("form", { name: "Log a mock" });
+  await form.getByLabel("Problem").fill("https://leetcode.com/problems/two-sum/");
+  await form.getByLabel("Notes").fill("Clean, 20 minutes");
+  await form.getByRole("button", { name: "Log mock" }).click();
+  await expect(form.getByRole("status")).toContainText("Demo mode");
+  await expectNoPageOverflow(page);
 });
 
 test("connecting the extension isn't offered in the demo", async ({ page }) => {

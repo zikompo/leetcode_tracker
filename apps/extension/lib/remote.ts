@@ -1,10 +1,12 @@
 import {
   attemptSchema,
   customListSchema,
+  mockInterviewSchema,
   problemSchema,
   settingsSchema,
   type Attempt,
   type CustomList,
+  type MockInterview,
   type Problem,
   type Settings,
 } from "@leettrack/core";
@@ -17,6 +19,7 @@ export interface SyncBatch {
   problems: Problem[];
   settings?: Settings;
   lists: CustomList[];
+  mocks: MockInterview[];
 }
 
 export interface PullResult extends SyncBatch {
@@ -71,16 +74,18 @@ export function supabaseRemote(client: SupabaseClient): Remote {
         p_problems: batch.problems,
         p_settings: batch.settings ?? null,
         p_lists: batch.lists,
+        p_mocks: batch.mocks,
       });
       if (error) throw new Error(`Couldn't upload: ${error.message}`);
     },
 
     async pull(since) {
-      const [attempts, problems, settings, lists] = await Promise.all([
+      const [attempts, problems, settings, lists, mocks] = await Promise.all([
         pullTable("attempts", attemptSchema, since),
         pullTable("user_problems", problemSchema, since),
         pullTable("settings", settingsSchema, since),
         pullTable("custom_lists", customListSchema, since),
+        pullTable("mock_interviews", mockInterviewSchema, since),
       ]);
       const s = settings.rows[0] as Settings | undefined;
       return {
@@ -88,7 +93,8 @@ export function supabaseRemote(client: SupabaseClient): Remote {
         problems: problems.rows as Problem[],
         ...(s ? { settings: s } : {}),
         lists: lists.rows as CustomList[],
-        cursor: [attempts, problems, settings, lists].reduce<string | null>(
+        mocks: mocks.rows as MockInterview[],
+        cursor: [attempts, problems, settings, lists, mocks].reduce<string | null>(
           (c, t) => later(c, t.cursor),
           since,
         ),

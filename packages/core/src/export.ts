@@ -1,6 +1,12 @@
 import { z } from "zod";
-import { attemptSchema, customListSchema, problemSchema, settingsSchema } from "./schema";
-import type { Attempt, CustomList, Problem, Settings } from "./types";
+import {
+  attemptSchema,
+  customListSchema,
+  mockInterviewSchema,
+  problemSchema,
+  settingsSchema,
+} from "./schema";
+import type { Attempt, CustomList, MockInterview, Problem, Settings } from "./types";
 
 export const EXPORT_SCHEMA_VERSION = 1;
 
@@ -13,6 +19,8 @@ export const exportFileSchema = z.object({
   settings: settingsSchema.optional(),
   // Added in M4; older exports have none.
   customLists: z.array(customListSchema).optional(),
+  // Added in M7.
+  mocks: z.array(mockInterviewSchema).optional(),
 });
 
 export type ExportFile = z.infer<typeof exportFileSchema>;
@@ -23,6 +31,7 @@ export function buildExport(
     attempts: Attempt[];
     settings: Settings;
     customLists?: CustomList[];
+    mocks?: MockInterview[];
   },
   now = new Date(),
 ): ExportFile {

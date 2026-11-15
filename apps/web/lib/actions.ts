@@ -128,10 +128,63 @@ export async function updateSettings(
 ): Promise<ActionResult> {
   if (DEMO) return DEMO_RESULT;
   try {
-    const next: Settings = { ...(await currentSettings()), ...patch, updatedAt: now() };
-    await push({ settings: next });
+    const next = settingsSchema.safeParse({
+      ...(await currentSettings()),
+      ...patch,
+      updatedAt: now(),
+    });
+    if (!next.success) return { ok: false, message: "Some of those values are out of range." };
+    await push({ settings: next.data });
     revalidatePath("/", "layout");
     return { ok: true, message: "Saved." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Add or change an interview date (spec 5.5). */
+export async function saveTarget(input: {
+  id?: string;
+  label: string;
+  date: string;
+  listIds: string[];
+}): Promise<ActionResult> {
+  const label = input.label.trim();
+  if (!label) return { ok: false, message: "Give the interview a name." };
+  if (!DATE.test(input.date)) return { ok: false, message: "Pick a date." };
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const settings = await currentSettings();
+    const targets = settings.targetDates ?? [];
+    const existing = input.id ? targets.find((t) => t.id === input.id) : undefined;
+    const target = {
+      id: existing?.id ?? crypto.randomUUID(),
+      label: label.slice(0, 80),
+      date: input.date,
+      listIds: input.listIds,
+      createdAt: existing?.createdAt ?? now(),
+    };
+    const targetDates = existing
+      ? targets.map((t) => (t.id === existing.id ? target : t))
+      : [...targets, target];
+    await push({ settings: { ...settings, targetDates, updatedAt: now() } });
+    revalidatePath("/", "layout");
+    return { ok: true, message: existing ? "Saved." : `Added “${target.label}”.` };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function deleteTarget(id: string): Promise<ActionResult> {
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const settings = await currentSettings();
+    const targetDates = (settings.targetDates ?? []).filter((t) => t.id !== id);
+    await push({ settings: { ...settings, targetDates, updatedAt: now() } });
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Removed." };
   } catch (err) {
     return fail(err);
   }

@@ -77,3 +77,16 @@ body {
   cursor: pointer;
   font-size: inherit;
 }
+.countdowns {
+  list-style: none;
+  margin: -4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+}
+.countdowns strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}

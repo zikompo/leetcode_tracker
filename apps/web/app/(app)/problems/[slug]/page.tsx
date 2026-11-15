@@ -82,6 +82,9 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
           {card ? (
             <p>
               Next review <strong>{formatDue(card.due, snap.now)}</strong> ({formatDate(card.due)})
+              {card.forTarget && (
+                <span className="muted"> · brought forward for {card.forTarget}</span>
+              )}
               <br />
               <span className="muted small">
                 Recall now about {pct(card.retrievability)} · memory stable for ~

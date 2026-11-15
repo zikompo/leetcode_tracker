@@ -32,6 +32,8 @@ export interface CardSummary {
   isDue: boolean;
   isLeech: boolean;
   quickEligible: boolean;
+  /** Brought forward for an extra review before this interview. */
+  forTarget?: string;
 }
 
 export interface ProblemState {

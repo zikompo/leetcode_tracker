@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { activity, dashboardFrom, patternName, queueFrom, statsFrom } from "@leettrack/insights";
+import {
+  activity,
+  countdowns,
+  dashboardFrom,
+  patternName,
+  queueFrom,
+  statsFrom,
+} from "@leettrack/insights";
 import { Heatmap } from "@/components/Heatmap";
 import { QueueList } from "@/components/QueueList";
 import { loadSnapshot } from "@/lib/data";
@@ -16,6 +23,7 @@ export default async function DashboardPage() {
   const name = (id: string) => patternName(id, snap.settings);
   const reviews = queue.items.filter((i) => i.kind === "review");
   const fresh = queue.items.filter((i) => i.kind === "new");
+  const upcoming = countdowns(snap);
 
   return (
     <>
@@ -29,6 +37,20 @@ export default async function DashboardPage() {
           })}
         </span>
       </div>
+
+      {upcoming.length > 0 && (
+        <section className="countdowns" aria-label="Interviews">
+          {upcoming.map((c) => (
+            <Link key={c.id} href="/plan" className="card countdown">
+              <strong>{c.daysLeft === 0 ? "Today" : c.daysLeft}</strong>{" "}
+              <span>
+                {c.daysLeft === 0 ? "" : `day${c.daysLeft === 1 ? "" : "s"} to `}
+                {c.label}
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       <section className="stats" aria-label="Summary">
         <div className="card stat">
@@ -57,7 +79,11 @@ export default async function DashboardPage() {
         <section className="card" aria-labelledby="today">
           <h2 id="today">Today</h2>
           {reviews.length === 0 && fresh.length === 0 ? (
-            <p className="muted">Nothing due, and no new problems queued.</p>
+            <p className="muted">
+              {queue.noNewFor
+                ? `Nothing due. No new problems before ${queue.noNewFor.label}: rest up.`
+                : "Nothing due, and no new problems queued."}
+            </p>
           ) : (
             <div className="stack">
               {reviews.length > 0 && <QueueList items={reviews} />}
@@ -66,9 +92,16 @@ export default async function DashboardPage() {
                   {queue.reviewsDue - reviews.length} more due, held back by your daily limit.
                 </p>
               )}
+              {queue.noNewFor && (
+                <p className="muted small">
+                  No new problems today: {queue.noNewFor.label} is close, so it&apos;s reviews only.
+                </p>
+              )}
               {fresh.length > 0 && (
                 <>
-                  <span className="muted small">New from your active lists</span>
+                  <span className="muted small">
+                    {upcoming.length > 0 ? "New, from your plan" : "New from your active lists"}
+                  </span>
                   <QueueList items={fresh} />
                 </>
               )}

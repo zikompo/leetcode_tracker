@@ -16,6 +16,7 @@ import {
 } from "@leettrack/core";
 import {
   buildSnapshot,
+  countdowns,
   dashboardFrom,
   problemStateFrom,
   queueFrom,
@@ -242,6 +243,7 @@ export function createService(
     getStats: async () => statsFrom(await snapshot()),
     getQueue: async () => queueFrom(await snapshot()),
     getDashboard: async () => dashboardFrom(await snapshot()),
+    getCountdowns: async () => countdowns(await snapshot()),
 
     async exportData() {
       const [problems, attempts, customLists] = await Promise.all([

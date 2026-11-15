@@ -98,6 +98,53 @@ test("lists: seed and custom lists with progress", async ({ page }) => {
   await expectNoPageOverflow(page);
 });
 
+test("dashboard: a countdown to each interview", async ({ page }) => {
+  await page.goto("/dashboard");
+  const countdowns = page.getByRole("region", { name: "Interviews" });
+  await expect(countdowns.getByRole("link")).toHaveCount(2);
+  await expect(countdowns).toContainText("6 days to Phone screen");
+  await countdowns.getByRole("link", { name: /Onsite interview/ }).click();
+  await expect(page).toHaveURL(/\/plan$/);
+});
+
+test("plan: each interview with pace, a day-by-day plan and a form", async ({ page }) => {
+  await page.goto("/plan");
+  const phone = page.getByRole("region", { name: "Phone screen" });
+  await expect(phone).toContainText("in 6 days");
+  await expect(phone).toContainText("Graphs to revisit");
+  await expect(phone.getByRole("img", { name: /Phone screen: \d+ of 4 started/ })).toBeVisible();
+  const days = phone.locator(".plan-day");
+  await expect(days.first()).toContainText("Today");
+  await expect(days.last()).toContainText("Interview day");
+  await expect(phone).toContainText("Reviews only");
+
+  const onsite = page.getByRole("region", { name: "Onsite interview" });
+  await expect(onsite).toContainText("Blind 75");
+  // Its plan steers around the phone screen's reviews-only days.
+  await onsite.getByText(/Show the other \d+ days/).click();
+  await expect(onsite).toContainText("Reviews only: Phone screen is close.");
+
+  const form = page.getByRole("form", { name: "Add an interview" });
+  await form.getByLabel("Interview").fill("Final round");
+  await form.getByLabel("Date").fill("2030-01-15");
+  await form.getByRole("button", { name: "Add interview" }).click();
+  await expect(form.getByRole("status")).toContainText("Demo mode");
+  await expectNoPageOverflow(page);
+});
+
+test("clue journal: clues grouped by pattern", async ({ page }) => {
+  await page.goto("/clues");
+  const nav = page.getByRole("navigation", { name: "Patterns" });
+  await expect(nav.getByRole("link")).not.toHaveCount(0);
+  const first = nav.getByRole("link").first();
+  const name = (await first.textContent())!.replace(/\d+$/, "").trim();
+  await first.click();
+  const group = page.getByRole("region", { name });
+  await expect(group.locator("blockquote").first()).toBeVisible();
+  await expect(group.getByRole("link").nth(1)).toHaveAttribute("href", /^\/problems\//);
+  await expectNoPageOverflow(page);
+});
+
 test("settings: review options, data and account deletion", async ({ page }) => {
   await page.goto("/settings");
   await expect(page.getByLabel("Reviews per day")).toHaveValue("20");

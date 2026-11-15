@@ -7,6 +7,7 @@ import type { SyncStatus } from "@/lib/account";
 import { formatAgo, formatDue } from "@/lib/format";
 import { call } from "@/lib/messaging";
 import type { ProblemState, Stats, TabMessage } from "@/lib/types";
+import type { Countdown } from "@leettrack/insights";
 import "@/components/base.css";
 import "./popup.css";
 
@@ -39,6 +40,11 @@ function QueueRow({ item }: { item: QueueItem }) {
           )}
           <span className={`pill ${item.kind === "new" ? "pill-new" : "pill-due"}`}>{marker}</span>
           {item.quickEligible && <span className="pill">quick</span>}
+          {item.forTarget && (
+            <span className="pill pill-due" title="An extra review before this interview">
+              before {item.forTarget.label}
+            </span>
+          )}
           {item.isLeech && <span className="pill pill-bad">leech</span>}
         </span>
       </button>
@@ -78,9 +84,11 @@ function Today({ queue }: { queue: Queue | null }) {
         </h2>
         {fresh.length === 0 ? (
           <p className="muted">
-            {queue.newDoneToday > 0
-              ? "You've started today's new problems."
-              : "No new problems: pick an active list in settings."}
+            {queue.noNewFor
+              ? `None today: ${queue.noNewFor.label} is close, so it's reviews only.`
+              : queue.newDoneToday > 0
+                ? "You've started today's new problems."
+                : "No new problems: pick an active list in settings."}
           </p>
         ) : (
           <ol className="queue">
@@ -102,6 +110,7 @@ function Popup() {
   const [queue, setQueue] = useState<Queue | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
+  const [upcoming, setUpcoming] = useState<Countdown[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -112,11 +121,13 @@ function Popup() {
         setTab("problem");
         setProblem(await call("getProblemState", loc.slug));
       }
-      const [q, s, st] = await Promise.all([
+      const [q, s, st, cd] = await Promise.all([
         call("getQueue"),
         call("getStats"),
         call("getSyncStatus").catch(() => null),
+        call("getCountdowns"),
       ]);
+      setUpcoming(cd);
       setQueue(q);
       setStats(s);
       setSync(st);
@@ -167,6 +178,16 @@ function Popup() {
         </p>
       )}
 
+      {upcoming.length > 0 && (
+        <ul className="countdowns" aria-label="Interviews">
+          {upcoming.map((c) => (
+            <li key={c.id}>
+              <strong>{c.daysLeft === 0 ? "Today" : `${c.daysLeft}d`}</strong> {c.label}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <nav className="tabs" role="tablist">
         {tabs.map(([id, label]) => (
           <button
@@ -201,6 +222,7 @@ function Popup() {
           {problem.card && (
             <p className="muted">
               Next review {formatDue(problem.card.due)}
+              {problem.card.forTarget && ` (before ${problem.card.forTarget})`}
               {problem.card.isLeech && " · leech"}
             </p>
           )}

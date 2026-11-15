@@ -102,11 +102,17 @@ export interface CardState {
   lastReview?: string;
 }
 
+/** An interview (or other deadline) to prepare for (spec 5.5). */
 export interface TargetDate {
   id: string;
+  /** "Google onsite" */
   label: string;
+  /** Local calendar date, YYYY-MM-DD. */
   date: string;
+  /** Lists to finish by then; empty means the active lists. */
   listIds: string[];
+  /** When the target was set: where the pace chart starts. */
+  createdAt?: string;
 }
 
 /** What the extension observed during an attempt session (auto-filled, read-only in the panel). */
@@ -190,6 +196,17 @@ export interface Settings {
   hideTopicsWhileSolving: boolean;
   /** Where solutions are committed (spec 8). The token itself never leaves the browser. */
   github?: GitHubTarget;
+  /** Interview dates (spec 5.5). */
+  targetDates?: TargetDate[];
+  /** Extra review this many days before a target, for problems that would be shaky by then. */
+  targetBufferDays: number;
+  /** No new problems in this many days before a target: reviews only. */
+  targetNoNewDays: number;
+  /**
+   * Recall wanted on an interview day. Above `desiredRetention`, because a review falls due
+   * exactly when recall drops to that, so the same bar would almost never call for an extra.
+   */
+  targetRetention: number;
   updatedAt: string;
 }
 
@@ -200,5 +217,8 @@ export const DEFAULT_SETTINGS: Settings = {
   desiredRetention: 0.9,
   activeLists: ["neetcode150"],
   hideTopicsWhileSolving: false,
+  targetBufferDays: 2,
+  targetNoNewDays: 2,
+  targetRetention: 0.95,
   updatedAt: new Date(0).toISOString(),
 };

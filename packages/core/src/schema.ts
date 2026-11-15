@@ -112,5 +112,20 @@ export const settingsSchema = z.object({
       includeNotes: z.boolean().default(true),
     })
     .optional(),
+  // Added in M6.
+  targetDates: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().min(1).max(80),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        listIds: z.array(z.string()),
+        createdAt: isoDate.optional(),
+      }),
+    )
+    .optional(),
+  targetBufferDays: z.number().int().min(0).max(14).default(2),
+  targetNoNewDays: z.number().int().min(0).max(14).default(2),
+  targetRetention: z.number().min(0.7).max(0.99).default(0.95),
   updatedAt: isoDate,
 });

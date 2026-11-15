@@ -1,5 +1,6 @@
 import {
   DEFAULT_SETTINGS,
+  dateKey,
   type Attempt,
   type CustomList,
   type HelpLevel,
@@ -59,12 +60,27 @@ const NOTES = [
   "Write the brute force first, then cache repeated work.",
   "Draw the state transitions before coding.",
 ];
-const CLUES = [
-  "Asked for pairs: think complement lookup.",
-  "Sorted input: two pointers.",
-  '"Minimum/maximum so far": a monotonic structure.',
-  "Overlapping subproblems in the recursion.",
-];
+/** What gave the pattern away, by the problem's first suggested pattern. */
+const CLUES: Record<string, string[]> = {
+  "arrays-hashing": ["Asked for pairs: think complement lookup.", "Need to group by a key."],
+  "two-pointers": ["Sorted input and a pair to find: two pointers from both ends."],
+  "sliding-window-variable": ["Longest substring with a condition: grow and shrink a window."],
+  stack: ["Matching brackets: last opened, first closed."],
+  "monotonic-stack": ['"Next greater" for every element: a monotonic stack.'],
+  "binary-search-index": ["Sorted and asked for O(log n)."],
+  "binary-search-answer": ["Minimise the largest value: binary search on the answer."],
+  "linked-list": ["Rewire pointers in place; a dummy head saves edge cases."],
+  "tree-dfs": ["Answer for a node depends on its subtrees."],
+  "tree-bfs": ["Level by level: a queue."],
+  "heap-top-k": ["k largest or k closest: a heap of size k."],
+  backtracking: ["All combinations or permutations: choose, explore, undo."],
+  "graph-dfs": ["Count connected regions in a grid."],
+  "graph-bfs": ["Shortest path in an unweighted grid."],
+  "topological-sort": ["Prerequisites: an order of a DAG."],
+  intervals: ["Overlapping ranges: sort by start."],
+  greedy: ["A local best choice never hurts later."],
+};
+const DEFAULT_CLUES = ["Overlapping subproblems in the recursion."];
 const STUCK = [
   "Off-by-one on the window bounds.",
   "Forgot to handle duplicates.",
@@ -140,7 +156,8 @@ export function demoData(now: Date = new Date()): DataSet {
       if (rand() < 0.6) attempt.notes = pick(NOTES);
       if (outcome !== "solved_independently" && rand() < 0.8) attempt.stuckNote = pick(STUCK);
       if (leech) attempt.stuckNote = STUCK[k % STUCK.length]!;
-      if (rand() < 0.5) attempt.patternClue = pick(CLUES);
+      if (rand() < 0.5)
+        attempt.patternClue = pick(CLUES[seed.suggestedPatterns[0] ?? ""] ?? DEFAULT_CLUES);
       attempts.push(attempt);
       t = ended.getTime() + (2 + Math.floor(rand() * 20)) * DAY;
       if (t > now.getTime() - DAY) break;
@@ -171,7 +188,26 @@ export function demoData(now: Date = new Date()): DataSet {
   return {
     problems,
     attempts,
-    settings: { ...DEFAULT_SETTINGS, updatedAt: now.toISOString() },
+    settings: {
+      ...DEFAULT_SETTINGS,
+      targetDates: [
+        {
+          id: "demo-onsite",
+          label: "Onsite interview",
+          date: dateKey(new Date(now.getTime() + 24 * DAY)),
+          listIds: ["blind75"],
+          createdAt: new Date(now.getTime() - 10 * DAY).toISOString(),
+        },
+        {
+          id: "demo-phone",
+          label: "Phone screen",
+          date: dateKey(new Date(now.getTime() + 6 * DAY)),
+          listIds: ["demo-list-graphs"],
+          createdAt: new Date(now.getTime() - 3 * DAY).toISOString(),
+        },
+      ],
+      updatedAt: now.toISOString(),
+    },
     customLists: lists,
   };
 }

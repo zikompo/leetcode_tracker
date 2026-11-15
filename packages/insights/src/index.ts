@@ -4,3 +4,5 @@ export * from "./views";
 export * from "./activity";
 export * from "./rows";
 export * from "./patterns";
+export * from "./targets";
+export * from "./clues";

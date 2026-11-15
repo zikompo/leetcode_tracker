@@ -6,6 +6,7 @@ import type { Stats } from "@/lib/types";
 import { AccountSettings } from "./AccountSettings";
 import { GitHubSettings } from "./GitHubSettings";
 import { AiSettings } from "./AiSettings";
+import { InterviewSettings } from "./InterviewSettings";
 import { ReviewSettings } from "./ReviewSettings";
 import { browser } from "wxt/browser";
 import "@/components/base.css";
@@ -95,6 +96,7 @@ function Options() {
       <AccountSettings />
 
       {settings && <ReviewSettings settings={settings} onChange={setSettings} />}
+      {settings && <InterviewSettings settings={settings} onChange={setSettings} />}
 
       <GitHubSettings />
 

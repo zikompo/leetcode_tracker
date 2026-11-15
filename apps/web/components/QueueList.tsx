@@ -20,6 +20,11 @@ export function QueueList({ items }: { items: QueueItem[] }) {
                   ? `overdue ${i.overdueDays}d`
                   : "due today"}
             </span>
+            {i.forTarget && (
+              <span className="pill pill-warn" title="An extra review before this interview">
+                before {i.forTarget.label}
+              </span>
+            )}
             {i.isLeech && <span className="pill pill-bad">leech</span>}
             <a className="small" href={leetcodeUrl(i.slug)} target="_blank" rel="noreferrer">
               Solve ↗

@@ -1,5 +1,5 @@
 import { CONFIG } from "./config";
-import type { Attempt, CardState, Difficulty, Settings } from "./types";
+import type { Attempt, CardState, Difficulty, Settings, TargetDate } from "./types";
 
 const DAY_MS = 86_400_000;
 const startOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -43,6 +43,8 @@ export interface ReviewSource {
   frontendId?: string;
   difficulty?: Difficulty;
   patterns: string[];
+  /** Brought forward for this interview (spec 5.5); `card.due` is then the earlier date. */
+  forTarget?: TargetDate;
 }
 
 export interface QueueItem {
@@ -60,6 +62,8 @@ export interface QueueItem {
   quickEligible: boolean;
   isLeech: boolean;
   patterns: string[];
+  /** An extra review before this interview. */
+  forTarget?: { id: string; label: string; date: string };
 }
 
 export interface Queue {
@@ -68,6 +72,8 @@ export interface Queue {
   reviewsDue: number;
   reviewsDoneToday: number;
   newDoneToday: number;
+  /** No new problems today: this interview is too close (spec 5.5). */
+  noNewFor?: { id: string; label: string; date: string };
 }
 
 export interface QueueInput {
@@ -80,7 +86,11 @@ export interface QueueInput {
   attempts: readonly Pick<Attempt, "problemSlug" | "endedAt">[];
   settings: Pick<Settings, "dailyNewLimit" | "dailyReviewLimit">;
   retrievabilityOf(card: CardState): number;
+  /** Set when an interview is close enough that only reviews are offered. */
+  noNewFor?: TargetDate;
 }
+
+const targetRef = (t: TargetDate) => ({ id: t.id, label: t.label, date: t.date });
 
 /** Reorder so no more than `maxRun` items in a row share a primary pattern, where possible. */
 export function interleave<T extends { patterns: string[] }>(
@@ -144,6 +154,7 @@ export function buildQueue(input: QueueInput): Queue {
         quickEligible: quickReviewEligible(r.card, r.attempts),
         isLeech: isLeech(r.attempts),
         patterns: r.patterns,
+        ...(r.forTarget ? { forTarget: targetRef(r.forTarget) } : {}),
       };
     });
 
@@ -163,7 +174,7 @@ export function buildQueue(input: QueueInput): Queue {
     (a, b) => b.overdueDays - a.overdueDays || a.due!.localeCompare(b.due!),
   );
 
-  const newCap = Math.max(0, input.settings.dailyNewLimit - newDoneToday);
+  const newCap = input.noNewFor ? 0 : Math.max(0, input.settings.dailyNewLimit - newDoneToday);
   const seen = new Set<string>();
   const fresh: QueueItem[] = [];
   for (const c of input.newCandidates) {
@@ -190,5 +201,6 @@ export function buildQueue(input: QueueInput): Queue {
     reviewsDue: due.length,
     reviewsDoneToday,
     newDoneToday,
+    ...(input.noNewFor ? { noNewFor: targetRef(input.noNewFor) } : {}),
   };
 }

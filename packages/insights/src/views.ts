@@ -6,7 +6,9 @@ import {
   isLeech,
   masteryInsights,
   medianSolveSeconds,
+  noNewProblemsFor,
   quickReviewEligible,
+  upcomingTargets,
   retrievability,
   type Difficulty,
   type MasteryProblem,
@@ -15,6 +17,7 @@ import {
   type ReviewSource,
 } from "@leettrack/core";
 import { allLists, listSlugs, type Snapshot } from "./snapshot";
+import { deadlineReviewOf, targetRemaining } from "./targets";
 import type { CardSummary, Dashboard, LeechInfo, ListProgress, ProblemState, Stats } from "./types";
 
 export const STATUSES: ProblemStatus[] = [
@@ -42,16 +45,19 @@ export function cardSummary(snap: Snapshot, slug: string): CardSummary | undefin
   const card = snap.cards.get(slug);
   if (!card) return undefined;
   const attempts = snap.bySlug.get(slug) ?? [];
+  const extra = deadlineReviewOf(snap, card);
+  const due = extra?.due ?? card.due;
   return {
-    due: card.due,
+    due,
     state: card.state,
     stabilityDays: card.stability,
     retrievability: recallOf(snap)(card),
     reps: card.reps,
     lapses: card.lapses,
-    isDue: new Date(card.due) < endOfLocalDay(snap.now),
+    isDue: new Date(due) < endOfLocalDay(snap.now),
     isLeech: isLeech(attempts),
     quickEligible: quickReviewEligible(card, attempts),
+    ...(extra ? { forTarget: extra.target.label } : {}),
   };
 }
 
@@ -81,31 +87,44 @@ export function problemStateFrom(snap: Snapshot, slug: string): ProblemState {
   return state;
 }
 
-/** Today's queue (spec 5.3). New problems come from the active lists, seed or custom. */
+/**
+ * Today's queue (spec 5.3). New problems come from the upcoming interviews' plans first, then
+ * the active lists (seed or custom). Problems that would be shaky on an interview day get an
+ * extra review before it, and the last days before one are reviews only (spec 5.5).
+ */
 export function queueFrom(snap: Snapshot): Queue {
-  const reviews: ReviewSource[] = [...snap.cards].map(([slug, card]) => ({
-    slug,
-    card,
-    attempts: snap.bySlug.get(slug) ?? [],
-    ...snap.info(slug),
-    patterns: [...effectivePatterns(snap.patternsOf(slug))],
-  }));
-  const newCandidates = snap.settings.activeLists.flatMap((id) =>
-    listSlugs(snap, id).map((slug) => {
-      const info = snap.info(slug);
-      return {
-        slug,
-        title: info.title ?? slug,
-        frontendId: info.frontendId ?? "",
-        difficulty: info.difficulty ?? "Medium",
-        patterns: snap.patternsOf(slug).suggestedPatterns,
-      };
-    }),
-  );
+  const reviews: ReviewSource[] = [...snap.cards].map(([slug, card]) => {
+    const extra = deadlineReviewOf(snap, card);
+    return {
+      slug,
+      card: extra ? { ...card, due: extra.due } : card,
+      attempts: snap.bySlug.get(slug) ?? [],
+      ...snap.info(slug),
+      patterns: [...effectivePatterns(snap.patternsOf(slug))],
+      ...(extra ? { forTarget: extra.target } : {}),
+    };
+  });
+  const targets = upcomingTargets(snap.settings.targetDates, snap.now);
+  const newCandidates = [
+    ...targets.flatMap((t) => targetRemaining(snap, t)),
+    ...snap.settings.activeLists.flatMap((id) =>
+      listSlugs(snap, id).map((slug) => {
+        const info = snap.info(slug);
+        return {
+          slug,
+          title: info.title ?? slug,
+          frontendId: info.frontendId ?? "",
+          difficulty: info.difficulty ?? "Medium",
+          patterns: snap.patternsOf(slug).suggestedPatterns,
+        };
+      }),
+    ),
+  ];
   const startedSlugs = new Set([
     ...snap.bySlug.keys(),
     ...snap.problems.filter((p) => p.statusOverride).map((p) => p.slug),
   ]);
+  const noNewFor = noNewProblemsFor(targets, snap.now, snap.settings.targetNoNewDays);
   return buildQueue({
     now: snap.now,
     reviews,
@@ -114,6 +133,7 @@ export function queueFrom(snap: Snapshot): Queue {
     attempts: snap.attempts,
     settings: snap.settings,
     retrievabilityOf: recallOf(snap),
+    ...(noNewFor ? { noNewFor } : {}),
   });
 }
 

@@ -11,3 +11,5 @@ export * from "./complexity";
 export * from "./fsrs";
 export * from "./queue";
 export * from "./mastery";
+export * from "./deadline";
+export * from "./plan";

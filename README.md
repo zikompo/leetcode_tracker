@@ -2,13 +2,14 @@
 
 Chrome extension (MV3) and companion site for tracking LeetCode attempts, spaced-repetition reviews, and pattern mastery.
 
-Status: **M0–M5 are done.**
+Status: **M0–M6 are done.**
 
 - **M0 and M1:** the extension logs every attempt.
 - **M2:** spaced repetition (FSRS).
 - **M3:** patterns and mastery, and the seed lists.
 - **M4:** accounts, two-way sync, and the website.
 - **M5:** commit Accepted solutions to a GitHub repo.
+- **M6:** interview dates: extra reviews before each one, reviews-only last days, a day-by-day Plan with a pace chart, and the Clue Journal.
 
 The extension still works fully offline; an account is optional.
 
@@ -17,14 +18,14 @@ The extension still works fully offline; an account is optional.
 ```
 packages/core       Pure TS domain logic: types, status, rating, FSRS, queue, mastery, merge, export
 packages/seed       Pattern taxonomy, Blind 75 / NeetCode 150 / NeetCode 250 with suggested patterns
-packages/insights   Views shared by the extension and the website: queue, stats, dashboard, rows
+packages/insights   Views shared by the extension and the website: queue, stats, dashboard, plans, clues
 supabase            Database schema (migrations) and its tests (PGlite)
 apps/extension      WXT + React MV3 extension
   adapters/leetcode   The only code that knows LeetCode URLs and payload shapes
   lib/                Background service (IndexedDB), sync, account, AI suggestions, messaging
   entrypoints/        background, page-world interceptor, content script + panel, popup, options, dashboard
   e2e/                Playwright tests against a mock leetcode.com and a fake Supabase
-apps/web            Next.js website: dashboard, problems, patterns, lists, settings
+apps/web            Next.js website: dashboard, problems, patterns, lists, plan, clue journal, settings
 docs                Setup guides
 ```
 

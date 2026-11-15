@@ -54,6 +54,10 @@ export interface ImportSummary {
   problemsMerged: number;
   /** Mock interviews added or changed. */
   mocksMerged: number;
+  /** Interview dates added (prep-tracker imports). */
+  interviewsAdded?: number;
+  /** The file was a prep-tracker export. */
+  fromTracker?: boolean;
 }
 
 /** Every request the background service worker answers. */

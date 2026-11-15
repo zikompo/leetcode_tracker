@@ -21,6 +21,9 @@ import {
   confidenceGauge,
   countdowns,
   dashboardFrom,
+  fromPrepTracker,
+  isPrepTracker,
+  withTargetDates,
   patternDetail,
   problemStateFrom,
   queueFrom,
@@ -279,6 +282,30 @@ export function createService(
     },
 
     async importData(json: string): Promise<ImportSummary> {
+      let raw: unknown;
+      try {
+        raw = JSON.parse(json);
+      } catch {
+        throw new Error("That file isn't valid JSON.");
+      }
+      if (isPrepTracker(raw)) {
+        const t = fromPrepTracker(raw, clock());
+        const current = await settings();
+        const targetDates = withTargetDates(current.targetDates, t.targetDates);
+        const summary = await mergeIntoRepo(repo, {
+          problems: t.problems,
+          attempts: t.attempts,
+          mocks: t.mocks,
+          ...(targetDates ? { settings: { ...current, targetDates, updatedAt: nowIso() } } : {}),
+        });
+        return {
+          ...summary,
+          interviewsAdded: targetDates
+            ? targetDates.length - (current.targetDates?.length ?? 0)
+            : 0,
+          fromTracker: true,
+        };
+      }
       const parsed = parseExport(json);
       if (!parsed.ok) throw new Error(parsed.error);
       return mergeIntoRepo(repo, parsed.data);

@@ -16,6 +16,7 @@ import {
   type Settings,
   type StatusOverride,
 } from "@leettrack/core";
+import { fromPrepTracker, isPrepTracker, withTargetDates } from "@leettrack/insights";
 import { SEED_BY_SLUG } from "@leettrack/seed";
 import { DEMO } from "./env";
 import { supabaseServer } from "./supabase/server";
@@ -246,9 +247,39 @@ export async function deleteList(id: string): Promise<ActionResult> {
 
 export async function importJson(json: string): Promise<ActionResult> {
   if (DEMO) return DEMO_RESULT;
-  const parsed = parseExport(json);
-  if (!parsed.ok) return { ok: false, message: parsed.error };
+  let raw: unknown;
   try {
+    raw = JSON.parse(json);
+  } catch {
+    return { ok: false, message: "That file isn't valid JSON." };
+  }
+  try {
+    if (isPrepTracker(raw)) {
+      const t = fromPrepTracker(raw);
+      const settings = await currentSettings();
+      const targetDates = withTargetDates(settings.targetDates, t.targetDates);
+      for (let i = 0; i < Math.max(t.attempts.length, 1); i += 500) {
+        await push({
+          attempts: t.attempts.slice(i, i + 500),
+          ...(i === 0
+            ? {
+                problems: t.problems,
+                mocks: t.mocks,
+                ...(targetDates
+                  ? { settings: { ...settings, targetDates, updatedAt: now() } }
+                  : {}),
+              }
+            : {}),
+        });
+      }
+      revalidatePath("/", "layout");
+      return {
+        ok: true,
+        message: `Imported from your prep tracker: ${t.attempts.length} attempts, ${t.mocks.length} mock interviews${targetDates ? " and your interview date" : ""}. Redo dates are estimated from the tracker's schedule.`,
+      };
+    }
+    const parsed = parseExport(json);
+    if (!parsed.ok) return { ok: false, message: parsed.error };
     const { attempts, problems, settings, customLists, mocks } = parsed.data;
     // Batches keep each request a reasonable size.
     for (let i = 0; i < Math.max(attempts.length, problems.length, 1); i += 500) {

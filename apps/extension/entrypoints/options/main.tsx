@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import type { PanelAutoOpen, Settings } from "@leettrack/core";
 import { call } from "@/lib/messaging";
-import type { Stats } from "@/lib/types";
+import type { ImportSummary, Stats } from "@/lib/types";
 import { AccountSettings } from "./AccountSettings";
 import { GitHubSettings } from "./GitHubSettings";
 import { AiSettings } from "./AiSettings";
@@ -21,6 +21,22 @@ const AUTO_OPEN: Array<[PanelAutoOpen, string, string]> = [
   ["every_submission", "On every submission", "Open it after any result, including Wrong Answer."],
   ["manual", "Only manually", "Open it yourself from the floating button or the toolbar."],
 ];
+
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+/** What an import brought in, in words. */
+function importMessage(r: ImportSummary): string {
+  if (r.fromTracker) {
+    const parts = [
+      plural(r.attemptsAdded, "attempt"),
+      r.problemsMerged ? plural(r.problemsMerged, "solved-before problem") : "",
+      r.mocksMerged ? plural(r.mocksMerged, "mock interview") : "",
+      r.interviewsAdded ? plural(r.interviewsAdded, "interview date") : "",
+    ].filter(Boolean);
+    return `Imported from your prep tracker: ${parts.join(", ")}. Redo dates are estimated from the tracker's schedule.`;
+  }
+  return `Imported: ${r.attemptsAdded} new attempts, ${r.attemptsUpdated} updated, ${r.problemsMerged} problems merged${r.mocksMerged ? `, ${plural(r.mocksMerged, "mock interview")}` : ""}.`;
+}
 
 function Options() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -51,7 +67,7 @@ function Options() {
       const r = await call("importData", await file.text());
       setMessage({
         kind: "ok",
-        text: `Imported: ${r.attemptsAdded} new attempts, ${r.attemptsUpdated} updated, ${r.problemsMerged} problems merged.`,
+        text: importMessage(r),
       });
       await refresh();
     } catch (e) {
@@ -133,7 +149,8 @@ function Options() {
           />
         </div>
         <p className="muted small">
-          Importing merges with what is here: nothing is deleted, newer edits win.
+          Importing merges with what is here: nothing is deleted, newer edits win. A prep-tracker
+          export works too.
         </p>
         {message && <p className={message.kind}>{message.text}</p>}
       </section>

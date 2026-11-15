@@ -95,7 +95,7 @@ export function SettingsForms({ settings }: { settings: Settings }) {
       <div className="grid items-start gap-4 md:grid-cols-2">
         <Panel
           title="Your data"
-          description="Download everything as JSON, or import a file exported from the extension. Importing merges: nothing is deleted, and newer edits win."
+          description="Download everything as JSON, or import a file exported from the extension, or a prep-tracker export. Importing merges: nothing is deleted, and newer edits win."
         >
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" asChild>

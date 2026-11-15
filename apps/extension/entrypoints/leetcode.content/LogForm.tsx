@@ -124,7 +124,7 @@ function TwistPrompt({
   onSave(twists: string[]): Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(twists.join("\n"));
+  const [text, setText] = useState("");
   const [drafting, setDrafting] = useState(false);
   const asked = useRef(false);
   useEffect(() => {
@@ -135,7 +135,6 @@ function TwistPrompt({
       void onGenerate().finally(() => setDrafting(false));
     }
   }, [twists.length, canGenerate, onGenerate]);
-  useEffect(() => setText(twists.join("\n")), [twists]);
   const twist = twists.length ? twists[attemptNumber % twists.length] : undefined;
 
   return (
@@ -187,7 +186,14 @@ function TwistPrompt({
           </div>
         </div>
       ) : (
-        <button type="button" className="lt-link" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          className="lt-link"
+          onClick={() => {
+            setText(twists.join("\n"));
+            setEditing(true);
+          }}
+        >
           {twists.length ? "Edit twists" : "Write twists"}
         </button>
       )}

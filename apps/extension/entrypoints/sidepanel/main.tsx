@@ -29,11 +29,12 @@ function useFollowedTab() {
   const forced = Number(new URLSearchParams(location.search).get("tab")) || undefined;
   const [tab, setTab] = useState<{ id: number; url: string } | null>(null);
   useEffect(() => {
+    let live = true;
     const read = async () => {
       const t = forced
         ? await browser.tabs.get(forced).catch(() => undefined)
         : (await browser.tabs.query({ active: true, currentWindow: true }))[0];
-      setTab(t?.id !== undefined ? { id: t.id, url: t.url ?? "" } : null);
+      if (live) setTab(t?.id !== undefined ? { id: t.id, url: t.url ?? "" } : null);
     };
     void read();
     const onActivated = () => void read();
@@ -43,6 +44,7 @@ function useFollowedTab() {
     browser.tabs.onActivated.addListener(onActivated);
     browser.tabs.onUpdated.addListener(onUpdated);
     return () => {
+      live = false;
       browser.tabs.onActivated.removeListener(onActivated);
       browser.tabs.onUpdated.removeListener(onUpdated);
     };

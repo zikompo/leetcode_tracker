@@ -43,10 +43,11 @@ function usePageTheme(): "light" | "dark" {
 /** Follow the system's light/dark setting (the side panel has no page to copy). */
 function useSystemTheme(): "light" | "dark" {
   const query = "(prefers-color-scheme: light)";
-  const [light, setLight] = useState(() => window.matchMedia(query).matches);
+  const [light, setLight] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(query);
     const on = () => setLight(mq.matches);
+    on();
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);

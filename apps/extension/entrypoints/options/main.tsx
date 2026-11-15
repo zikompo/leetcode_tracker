@@ -38,6 +38,15 @@ function importMessage(r: ImportSummary): string {
   return `Imported: ${r.attemptsAdded} new attempts, ${r.attemptsUpdated} updated, ${r.problemsMerged} problems merged${r.mocksMerged ? `, ${plural(r.mocksMerged, "mock interview")}` : ""}.`;
 }
 
+const PANEL_STYLES: Array<["floating" | "side", string, string]> = [
+  ["floating", "On the LeetCode page", "A small panel you can drag around, over the problem."],
+  [
+    "side",
+    "In Chrome's side panel",
+    "Beside the page, out of the way. The toolbar icon opens it; after a result the page offers a button to open it.",
+  ],
+];
+
 function Options() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -92,6 +101,26 @@ function Options() {
           Open dashboard
         </button>
       </header>
+
+      <section className="card" aria-labelledby="panel-style-heading">
+        <h2 id="panel-style-heading">Where should the log panel be?</h2>
+        <div className="radios" role="radiogroup" aria-labelledby="panel-style-heading">
+          {PANEL_STYLES.map(([value, label, hint]) => (
+            <label key={value} className="radio">
+              <input
+                type="radio"
+                name="panelStyle"
+                checked={(settings?.panelStyle ?? "floating") === value}
+                onChange={async () => setSettings(await call("setSettings", { panelStyle: value }))}
+              />
+              <span>
+                <strong className="font-medium">{label}</strong>
+                <span className="muted small">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="card" aria-labelledby="auto-open-heading">
         <h2 id="auto-open-heading">When should the log panel open?</h2>

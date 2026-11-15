@@ -28,7 +28,8 @@ export default defineConfig({
     name: "LeetTrack",
     description: "Log every LeetCode attempt, with notes and history, without leaving the page.",
     // alarms: recount the review badge hourly and at midnight, and sync every 15 minutes.
-    permissions: ["storage", "alarms"],
+    // sidePanel: the log panel can live in Chrome's side panel instead of on the page.
+    permissions: ["storage", "alarms", "sidePanel"],
     host_permissions: ["https://leetcode.com/*"],
     // Requested one origin at a time, only when the user sets up a complexity-suggestion
     // provider in settings (any HTTPS API, or a local server).

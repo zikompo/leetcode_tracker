@@ -229,6 +229,8 @@ export interface Settings {
    * exactly when recall drops to that, so the same bar would almost never call for an extra.
    */
   targetRetention: number;
+  /** Where the log panel lives: floating on the LeetCode page, or Chrome's side panel. */
+  panelStyle: "floating" | "side";
   /** Minutes before the panel nudges one rung up the hint ladder (spec 5.5); 0 turns it off. */
   timeboxMinutes: number;
   updatedAt: string;
@@ -245,5 +247,6 @@ export const DEFAULT_SETTINGS: Settings = {
   targetNoNewDays: 2,
   targetRetention: 0.95,
   timeboxMinutes: 20,
+  panelStyle: "floating",
   updatedAt: new Date(0).toISOString(),
 };

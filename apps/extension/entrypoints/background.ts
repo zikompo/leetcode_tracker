@@ -103,7 +103,34 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => void refreshBadge());
   void refreshBadge();
 
+  /**
+   * The side panel opens on the toolbar icon when it's the chosen panel style; otherwise the
+   * icon opens the popup.
+   */
+  async function syncPanelBehavior() {
+    try {
+      const s = await service.getSettings();
+      await browser.sidePanel.setPanelBehavior({
+        openPanelOnActionClick: s.panelStyle === "side",
+      });
+    } catch {
+      // sidePanel isn't available (an older Chrome): the popup still works
+    }
+  }
+  void syncPanelBehavior();
+
   browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+    // From the page's "Open side panel" button: open it right away, while the click still
+    // counts as the user's (Chrome only opens the side panel in response to one).
+    if ((message as { kind?: string } | null)?.kind === "leettrack-open-side-panel") {
+      const tabId = sender.tab?.id;
+      if (sender.id !== browser.runtime.id || tabId === undefined) return false;
+      browser.sidePanel.open({ tabId }).then(
+        () => sendResponse({ ok: true }),
+        (err: unknown) => sendResponse({ ok: false, error: String(err) }),
+      );
+      return true;
+    }
     const req = message as Partial<ApiRequest> | null;
     if (req?.kind !== "leettrack-api" || sender.id !== browser.runtime.id) return false;
     const handler = service[req.method as keyof typeof service] as
@@ -120,6 +147,7 @@ export default defineBackground(() => {
         sendResponse({ ok: true, value } satisfies ApiResponse);
         if (CHANGES_QUEUE.has(req.method as ApiMethod)) void refreshBadge();
         if (CHANGES_DATA.has(req.method as ApiMethod)) account.syncSoon();
+        if (req.method === "setSettings") void syncPanelBehavior();
         // Commit to GitHub in the background; saving never waits on it (spec 8.2).
         if (req.method === "saveAttempt") {
           const id = (req.args?.[0] as { attempt?: { id?: string } } | undefined)?.attempt?.id;

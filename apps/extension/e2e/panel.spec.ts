@@ -268,3 +268,44 @@ test("after opening the Editorial, the summary says solved with help", async ({ 
   await expect(summary).toContainText("With help · Read the key idea");
   await expect(summary).toContainText("Hard"); // light help suggests Hard
 });
+
+test("the side panel drives the same log as the page", async ({ context, extensionId }) => {
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await extensionReady(page);
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const tabId = await worker.evaluate(async () => {
+    const chrome = (globalThis as unknown as { chrome: typeof browser }).chrome;
+    const [tab] = await chrome.tabs.query({ url: "https://leetcode.com/problems/*" });
+    return tab!.id!;
+  });
+  const side = await context.newPage();
+  await side.goto(`chrome-extension://${extensionId}/sidepanel.html?tab=${tabId}`);
+  const panel = side.getByRole("region", { name: "LeetTrack" });
+  await expect(panel).toContainText("1. Two Sum");
+  await page.click("#submit-ac");
+  await expect(panel.locator(".lt-result")).toHaveText("Accepted");
+  await panel.getByRole("button", { name: "Save attempt" }).click();
+  await expect(side.getByText("Attempt saved.")).toBeVisible();
+  // The page's own panel saw the same save.
+  await expect(page.getByText("Attempt saved.")).toBeVisible();
+});
+
+test("with the side panel chosen, the page only offers to open it", async ({
+  context,
+  extensionId,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.getByRole("radio", { name: /In Chrome's side panel/ }).click();
+  await expect(options.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("button", { name: "Open LeetTrack log panel" })).toHaveCount(0);
+  await page.click("#submit-ac");
+  const pill = page.getByRole("status", { name: "LeetTrack" });
+  await expect(pill).toContainText("Accepted. Log it in LeetTrack's side panel.");
+  await expect(pill.getByRole("button", { name: "Open side panel" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "LeetTrack" })).toHaveCount(0);
+});

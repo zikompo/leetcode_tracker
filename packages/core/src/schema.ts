@@ -140,5 +140,6 @@ export const settingsSchema = z.object({
   targetNoNewDays: z.number().int().min(0).max(14).default(2),
   targetRetention: z.number().min(0.7).max(0.99).default(0.95),
   timeboxMinutes: z.number().int().min(0).max(180).default(20),
+  panelStyle: z.enum(["floating", "side"]).default("floating"),
   updatedAt: isoDate,
 });

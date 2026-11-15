@@ -55,3 +55,26 @@ test("capture panel after Accepted", async ({ context }) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${dir}/panel-detail-dark.png` });
 });
+
+test("capture side panel", async ({ context, extensionId }) => {
+  const dir = process.env.SCREENSHOT_DIR!;
+  const page = await context.newPage();
+  await page.goto("https://leetcode.com/problems/two-sum/description/");
+  await page
+    .getByRole("button", { name: "Open LeetTrack log panel" })
+    .waitFor({ state: "attached" });
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const tabId = await worker.evaluate(async () => {
+    const chrome = (globalThis as unknown as { chrome: typeof browser }).chrome;
+    const [tab] = await chrome.tabs.query({ url: "https://leetcode.com/problems/*" });
+    return tab!.id!;
+  });
+  const side = await context.newPage();
+  await side.emulateMedia({ colorScheme: "dark" });
+  await side.setViewportSize({ width: 400, height: 860 });
+  await side.goto(`chrome-extension://${extensionId}/sidepanel.html?tab=${tabId}`);
+  await page.click("#submit-ac");
+  await side.getByRole("button", { name: "Save attempt" }).waitFor();
+  await side.waitForTimeout(300);
+  await side.screenshot({ path: `${dir}/sidepanel-dark.png` });
+});

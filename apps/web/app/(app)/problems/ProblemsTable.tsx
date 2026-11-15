@@ -2,7 +2,21 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import type { Difficulty, ProblemStatus } from "@leettrack/core";
+import { Badge } from "@leettrack/ui/components/badge";
+import { Input } from "@leettrack/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
+import { Difficulty as DifficultyLabel } from "@leettrack/ui/components/panel";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@leettrack/ui/components/table";
+import { StatusLabel } from "@/components/StatusLabel";
 
 export interface Row {
   slug: string;
@@ -100,122 +114,143 @@ export function ProblemsTable({
   }, [rows, query, status, difficulty, pattern, list, sort]);
 
   const header = (key: SortKey, label: string, className?: string) => (
-    <th
+    <TableHead
       className={className}
       aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
     >
       <button
         type="button"
+        className="inline-flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground"
         onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }))}
       >
         {label}
-        {sort.key === key ? (sort.dir === 1 ? " ↑" : " ↓") : ""}
+        {sort.key === key ? (
+          sort.dir === 1 ? (
+            <ArrowUp className="size-3" aria-hidden />
+          ) : (
+            <ArrowDown className="size-3" aria-hidden />
+          )
+        ) : null}
       </button>
-    </th>
+    </TableHead>
   );
 
   return (
-    <div className="stack">
-      <div className="row" role="search">
-        <input
-          className="input"
-          placeholder="Search title or number"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search problems"
-        />
-        <select
-          className="input"
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2" role="search">
+        <div className="relative w-full sm:w-64">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            className="pl-8"
+            placeholder="Search title or number"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search problems"
+          />
+        </div>
+        <NativeSelect
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           aria-label="Status"
         >
-          <option value="">Any status</option>
+          <NativeSelectOption value="">Any status</NativeSelectOption>
           {(Object.keys(STATUS_ORDER) as ProblemStatus[]).map((s) => (
-            <option key={s} value={s}>
+            <NativeSelectOption key={s} value={s}>
               {rows.find((r) => r.status === s)?.statusLabel ?? s.replace(/_/g, " ")}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-        <select
-          className="input"
+        </NativeSelect>
+        <NativeSelect
           value={difficulty}
           onChange={(e) => setDifficulty(e.target.value)}
           aria-label="Difficulty"
         >
-          <option value="">Any difficulty</option>
-          <option>Easy</option>
-          <option>Medium</option>
-          <option>Hard</option>
-        </select>
-        <select
-          className="input"
+          <NativeSelectOption value="">Any difficulty</NativeSelectOption>
+          <NativeSelectOption>Easy</NativeSelectOption>
+          <NativeSelectOption>Medium</NativeSelectOption>
+          <NativeSelectOption>Hard</NativeSelectOption>
+        </NativeSelect>
+        <NativeSelect
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
           aria-label="Pattern"
         >
-          <option value="">Any pattern</option>
+          <NativeSelectOption value="">Any pattern</NativeSelectOption>
           {patterns.map((p) => (
-            <option key={p.id} value={p.id}>
+            <NativeSelectOption key={p.id} value={p.id}>
               {p.name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-        <select
-          className="input"
-          value={list}
-          onChange={(e) => setList(e.target.value)}
-          aria-label="List"
-        >
-          <option value="">Any list</option>
+        </NativeSelect>
+        <NativeSelect value={list} onChange={(e) => setList(e.target.value)} aria-label="List">
+          <NativeSelectOption value="">Any list</NativeSelectOption>
           {lists.map((l) => (
-            <option key={l.id} value={l.id}>
+            <NativeSelectOption key={l.id} value={l.id}>
               {l.name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-        <span className="muted small">{shown.length} problems</span>
+        </NativeSelect>
+        <span className="text-xs text-muted-foreground">{shown.length} problems</span>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              {header("number", "#", "hide-sm")}
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              {header("number", "#", "hidden w-12 md:table-cell")}
               {header("title", "Problem")}
               {header("difficulty", "Difficulty")}
               {header("status", "Status")}
-              <th className="hide-sm">Patterns</th>
-              {header("lastAttempted", "Last attempted", "hide-sm")}
+              <TableHead className="hidden font-medium text-muted-foreground lg:table-cell">
+                Patterns
+              </TableHead>
+              {header("lastAttempted", "Last attempted", "hidden md:table-cell")}
               {header("nextDue", "Next review")}
-              {header("attempts", "Attempts", "hide-sm")}
-              <th className="hide-sm">Best</th>
-            </tr>
-          </thead>
-          <tbody>
+              {header("attempts", "Attempts", "hidden md:table-cell")}
+              <TableHead className="hidden font-medium text-muted-foreground lg:table-cell">
+                Best
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {shown.map((r) => (
-              <tr key={r.slug}>
-                <td className="hide-sm muted">{r.number ?? ""}</td>
-                <td className="wrap">
-                  <Link href={`/problems/${r.slug}`}>{r.title}</Link>
+              <TableRow key={r.slug} className="even:bg-muted/30">
+                <TableCell className="hidden text-muted-foreground tabular-nums md:table-cell">
+                  {r.number ?? ""}
+                </TableCell>
+                <TableCell className="max-w-64 whitespace-normal">
+                  <Link href={`/problems/${r.slug}`} className="text-foreground">
+                    {r.title}
+                  </Link>
                   {r.isLeech && (
-                    <span className="pill pill-bad" style={{ marginLeft: 6 }}>
+                    <Badge variant="destructive" className="ml-1.5">
                       leech
-                    </span>
+                    </Badge>
                   )}
-                </td>
-                <td className={r.difficulty ? `diff-${r.difficulty}` : ""}>{r.difficulty ?? ""}</td>
-                <td>
-                  <span className={`status status-${r.status}`}>{r.statusLabel}</span>
-                </td>
-                <td className="hide-sm wrap small">{r.patterns.map((p) => p.name).join(", ")}</td>
-                <td className="hide-sm">{r.lastAttemptedLabel}</td>
-                <td>{r.nextDueLabel}</td>
-                <td className="hide-sm">{r.attempts || ""}</td>
-                <td className="hide-sm">{r.best}</td>
-              </tr>
+                </TableCell>
+                <TableCell>{r.difficulty && <DifficultyLabel value={r.difficulty} />}</TableCell>
+                <TableCell>
+                  <StatusLabel status={r.status} label={r.statusLabel} />
+                </TableCell>
+                <TableCell className="hidden max-w-56 text-xs whitespace-normal text-muted-foreground lg:table-cell">
+                  {r.patterns.map((p) => p.name).join(", ")}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {r.lastAttemptedLabel}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{r.nextDueLabel}</TableCell>
+                <TableCell className="hidden tabular-nums md:table-cell">
+                  {r.attempts || ""}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground lg:table-cell">
+                  {r.best}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

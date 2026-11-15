@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import type { Settings, TargetDate } from "@leettrack/core";
+import { Button } from "@leettrack/ui/components/button";
+import { Checkbox } from "@leettrack/ui/components/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@leettrack/ui/components/dialog";
+import { Input } from "@leettrack/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
+import { Notice } from "@leettrack/ui/components/panel";
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { Field } from "@/components/Field";
 import { deleteTarget, saveTarget, updateSettings, type ActionResult } from "@/lib/actions";
 
 function Result({ r }: { r: ActionResult | null }) {
-  return r ? (
-    <p className={r.ok ? "ok small" : "bad small"} role="status">
-      {r.message}
-    </p>
-  ) : null;
+  return r ? <Notice ok={r.ok}>{r.message}</Notice> : null;
 }
 
 /** Add an interview date, or edit one (with `target`). */
@@ -25,17 +35,18 @@ export function TargetForm({
   today: string;
   onDone?(): void;
 }) {
+  const id = useId();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
   const [label, setLabel] = useState(target?.label ?? "");
   const [date, setDate] = useState(target?.date ?? "");
   const [listIds, setListIds] = useState<string[]>(target?.listIds ?? []);
-  const toggle = (id: string, on: boolean) =>
-    setListIds(lists.map((l) => l.id).filter((l) => (l === id ? on : listIds.includes(l))));
+  const toggle = (listId: string, on: boolean) =>
+    setListIds(lists.map((l) => l.id).filter((l) => (l === listId ? on : listIds.includes(l))));
 
   return (
     <form
-      className="stack"
+      className="flex flex-col gap-3"
       aria-label={target ? `Edit ${target.label}` : "Add an interview"}
       onSubmit={(e) => {
         e.preventDefault();
@@ -53,53 +64,50 @@ export function TargetForm({
         });
       }}
     >
-      <div className="row">
-        <label className="field grow">
-          <span>Interview</span>
-          <input
-            className="input"
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <Field label="Interview" htmlFor={`${id}-label`}>
+          <Input
+            id={`${id}-label`}
             placeholder="e.g. Onsite at Acme"
             maxLength={80}
             value={label}
             onChange={(e) => setLabel(e.target.value)}
           />
-        </label>
-        <label className="field">
-          <span>Date</span>
-          <input
-            className="input"
+        </Field>
+        <Field label="Date" htmlFor={`${id}-date`}>
+          <Input
+            id={`${id}-date`}
             type="date"
             min={today}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
-        </label>
+        </Field>
       </div>
-      <fieldset className="plain">
-        <legend className="small muted">
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-xs text-muted-foreground">
           Lists to finish by then (none ticked: your active lists)
         </legend>
-        <div className="row">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
           {lists.map((l) => (
-            <label key={l.id} className="check small">
-              <input
-                type="checkbox"
+            <label key={l.id} className="flex items-center gap-2 text-sm">
+              <Checkbox
                 checked={listIds.includes(l.id)}
-                onChange={(e) => toggle(l.id, e.target.checked)}
+                onCheckedChange={(on) => toggle(l.id, on === true)}
               />
               {l.name}
             </label>
           ))}
         </div>
       </fieldset>
-      <div className="row">
-        <button className="btn btn-primary" disabled={pending}>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={pending}>
           {target ? "Save" : "Add interview"}
-        </button>
+        </Button>
         {onDone && target && (
-          <button type="button" className="btn" onClick={onDone}>
+          <Button type="button" variant="ghost" onClick={onDone}>
             Cancel
-          </button>
+          </Button>
         )}
       </div>
       <Result r={result} />
@@ -107,7 +115,7 @@ export function TargetForm({
   );
 }
 
-/** Edit and Remove for one interview. */
+/** Edit (in a dialog) and Remove (after a confirmation) for one interview. */
 export function TargetActions({
   target,
   lists,
@@ -120,28 +128,37 @@ export function TargetActions({
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
-  if (editing)
-    return (
-      <TargetForm target={target} lists={lists} today={today} onDone={() => setEditing(false)} />
-    );
   return (
-    <div className="stack">
-      <div className="row">
-        <button className="btn" onClick={() => setEditing(true)}>
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex gap-1">
+        <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
           Edit
-        </button>
-        <button
-          className="btn"
+        </Button>
+        <ConfirmButton
           disabled={pending}
-          onClick={() => {
-            if (!confirm(`Remove “${target.label}”?`)) return;
-            start(async () => setResult(await deleteTarget(target.id)));
-          }}
+          title={`Remove “${target.label}”?`}
+          description="Its plan and extra reviews go; your attempts stay."
+          confirm="Remove"
+          onConfirm={() => start(async () => setResult(await deleteTarget(target.id)))}
         >
           Remove
-        </button>
+        </ConfirmButton>
       </div>
       <Result r={result} />
+      <Dialog open={editing} onOpenChange={setEditing}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit interview</DialogTitle>
+            <DialogDescription>Change the name, date or lists.</DialogDescription>
+          </DialogHeader>
+          <TargetForm
+            target={target}
+            lists={lists}
+            today={today}
+            onDone={() => setEditing(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -154,6 +171,7 @@ const RECALL: Array<[number, string]> = [
 
 /** How interview dates change the schedule. */
 export function PlanOptions({ settings }: { settings: Settings }) {
+  const id = useId();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
   const [form, setForm] = useState({
@@ -163,59 +181,57 @@ export function PlanOptions({ settings }: { settings: Settings }) {
   });
   return (
     <form
-      className="stack"
+      className="flex flex-col gap-3"
       aria-label="Interview options"
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => setResult(await updateSettings(form)));
       }}
     >
-      <div className="row">
-        <label className="field">
-          <span>Extra review, days before</span>
-          <input
-            className="input"
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Extra review, days before" htmlFor={`${id}-buffer`}>
+          <Input
+            id={`${id}-buffer`}
             type="number"
             min={0}
             max={14}
             value={form.targetBufferDays}
             onChange={(e) => setForm({ ...form, targetBufferDays: Number(e.target.value) })}
           />
-        </label>
-        <label className="field">
-          <span>Reviews only, last days</span>
-          <input
-            className="input"
+        </Field>
+        <Field label="Reviews only, last days" htmlFor={`${id}-quiet`}>
+          <Input
+            id={`${id}-quiet`}
             type="number"
             min={0}
             max={14}
             value={form.targetNoNewDays}
             onChange={(e) => setForm({ ...form, targetNoNewDays: Number(e.target.value) })}
           />
-        </label>
-        <label className="field">
-          <span>Recall wanted on the day</span>
-          <select
-            className="input"
+        </Field>
+        <Field label="Recall wanted on the day" htmlFor={`${id}-recall`}>
+          <NativeSelect
+            id={`${id}-recall`}
+            className="w-full"
             value={form.targetRetention}
             onChange={(e) => setForm({ ...form, targetRetention: Number(e.target.value) })}
           >
             {RECALL.map(([v, l]) => (
-              <option key={v} value={v}>
+              <NativeSelectOption key={v} value={v}>
                 {l}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Field>
       </div>
-      <p className="muted small">
+      <p className="text-xs text-muted-foreground">
         A solved problem that would be shaky on the day comes back for one more review this many
         days before. In the last days you get reviews only, no new problems.
       </p>
-      <div className="row">
-        <button className="btn btn-primary" disabled={pending}>
+      <div>
+        <Button type="submit" disabled={pending}>
           Save
-        </button>
+        </Button>
       </div>
       <Result r={result} />
     </form>

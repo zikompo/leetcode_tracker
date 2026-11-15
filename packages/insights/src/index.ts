@@ -6,3 +6,4 @@ export * from "./rows";
 export * from "./patterns";
 export * from "./targets";
 export * from "./clues";
+export * from "./gauge";

@@ -8,6 +8,12 @@ import {
 } from "@leettrack/core";
 import { allLists, patternName, problemStateFrom } from "@leettrack/insights";
 import { SEED_BY_SLUG } from "@leettrack/seed";
+import { ExternalLink } from "lucide-react";
+import { Badge } from "@leettrack/ui/components/badge";
+import { Button } from "@leettrack/ui/components/button";
+import { Difficulty, Panel } from "@leettrack/ui/components/panel";
+import { RatingBadge } from "@/components/RatingBadge";
+import { StatusLabel } from "@/components/StatusLabel";
 import { loadSnapshot } from "@/lib/data";
 import { formatDate, formatDue, leetcodeUrl, pct } from "@/lib/util";
 import { CodeDiff } from "./CodeDiff";
@@ -53,101 +59,124 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
-      <div className="page-head">
-        <div className="stack" style={{ gap: 4 }}>
-          <h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="text-xl font-semibold tracking-tight">
             {info.frontendId ? `${info.frontendId}. ` : ""}
             {info.title ?? slug}
           </h1>
-          <div className="row small">
+          <div className="flex flex-wrap items-center gap-2">
             {info.difficulty && (
-              <span className={`diff-${info.difficulty}`}>{info.difficulty}</span>
+              <Badge variant="secondary">
+                <Difficulty value={info.difficulty} />
+              </Badge>
             )}
-            <span className={`status status-${status.status}`}>
-              {STATUS_LABELS[status.status]}
-              {status.optimality && status.optimality !== "unsure" ? ` · ${status.optimality}` : ""}
-              {status.overridden ? " · manual" : ""}
-            </span>
-            {card?.isLeech && <span className="pill pill-bad">leech</span>}
+            <StatusLabel
+              status={status.status}
+              label={`${STATUS_LABELS[status.status]}${
+                status.optimality && status.optimality !== "unsure" ? ` · ${status.optimality}` : ""
+              }${status.overridden ? " · manual" : ""}`}
+            />
+            {card?.isLeech && <Badge variant="destructive">leech</Badge>}
           </div>
         </div>
-        <a className="btn btn-primary" href={leetcodeUrl(slug)} target="_blank" rel="noreferrer">
-          Open on LeetCode ↗
-        </a>
+        <Button asChild>
+          <a
+            href={leetcodeUrl(slug)}
+            target="_blank"
+            rel="noreferrer"
+            className="no-underline hover:no-underline"
+          >
+            Open on LeetCode <ExternalLink aria-hidden />
+          </a>
+        </Button>
       </div>
 
-      <div className="grid">
-        <section className="card" aria-labelledby="schedule">
-          <h2 id="schedule">Review</h2>
+      <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Panel title="Review">
           {card ? (
-            <p>
-              Next review <strong>{formatDue(card.due, snap.now)}</strong> ({formatDate(card.due)})
-              {card.forTarget && (
-                <span className="muted"> · brought forward for {card.forTarget}</span>
-              )}
-              <br />
-              <span className="muted small">
+            <div className="flex flex-col gap-1">
+              <p>
+                Next review <strong>{formatDue(card.due, snap.now)}</strong>{" "}
+                <span className="text-muted-foreground">({formatDate(card.due)})</span>
+                {card.forTarget && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · brought forward for {card.forTarget}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Recall now about {pct(card.retrievability)} · memory stable for ~
                 {Math.round(card.stabilityDays)} days · {card.reps} reviews, {card.lapses} lapses
-              </span>
-            </p>
+              </p>
+            </div>
           ) : (
-            <p className="muted">Not scheduled yet: log an attempt in the extension.</p>
+            <p className="text-muted-foreground">
+              Not scheduled yet: log an attempt in the extension.
+            </p>
           )}
-        </section>
-        <section className="card" aria-labelledby="tags">
-          <h2 id="tags">Patterns and lists</h2>
-          <div className="row">
-            {shownPatterns.length === 0 && <span className="muted small">No patterns yet.</span>}
+        </Panel>
+        <Panel title="Patterns and lists">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {shownPatterns.length === 0 && (
+              <span className="text-xs text-muted-foreground">No patterns yet.</span>
+            )}
             {shownPatterns.map((id) => (
-              <span key={id} className="pill pill-accent">
+              <Badge key={id} variant="secondary">
                 {name(id)}
-              </span>
+              </Badge>
             ))}
             {!patterns.length && shownPatterns.length > 0 && (
-              <span className="muted small">(suggested)</span>
+              <span className="text-xs text-muted-foreground">(suggested)</span>
             )}
           </div>
           {(snap.problemMap.get(slug)?.leetcodeTopics.length ?? 0) > 0 && (
-            <p className="muted small">
+            <p className="text-xs text-muted-foreground">
               LeetCode tags: {snap.problemMap.get(slug)!.leetcodeTopics.join(", ")}
             </p>
           )}
           {lists.length > 0 && (
-            <p className="muted small">In {lists.map((l) => l.name).join(", ")}</p>
+            <p className="text-xs text-muted-foreground">
+              In {lists.map((l) => l.name).join(", ")}
+            </p>
           )}
-        </section>
-        <section className="card" aria-labelledby="override">
-          <h2 id="override">Manual status</h2>
+        </Panel>
+        <Panel title="Manual status">
           <OverrideForm
             slug={slug}
             {...(snap.problemMap.get(slug)?.statusOverride
               ? { current: snap.problemMap.get(slug)!.statusOverride! }
               : {})}
           />
-        </section>
+        </Panel>
       </div>
 
-      <section className="stack" aria-labelledby="attempts">
-        <h2 id="attempts">Attempts ({attempts.length})</h2>
+      <section className="flex flex-col gap-3" aria-labelledby="attempts">
+        <h2 id="attempts" className="text-sm font-medium">
+          Attempts ({attempts.length})
+        </h2>
         {attempts.length === 0 ? (
-          <p className="muted">No attempts logged.</p>
+          <p className="text-muted-foreground">No attempts logged.</p>
         ) : (
-          <ol className="timeline">
+          <ol className="flex flex-col gap-3" data-slot="timeline">
             {attempts.map((a, i) => (
-              <li key={a.id} className="card attempt">
-                <div className="attempt-head">
-                  <strong>#{attempts.length - i}</strong>
-                  <span>{formatDate(a.endedAt)}</span>
+              <li
+                key={a.id}
+                className="flex flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="tabular-nums">#{attempts.length - i}</strong>
+                  <span className="text-muted-foreground">{formatDate(a.endedAt)}</span>
                   <span>
                     {OUTCOME[a.outcome]}
                     {a.helpLevel !== "none" ? ` (${HELP[a.helpLevel]})` : ""}
                   </span>
-                  <span className="pill">{RATING_LABELS[a.rating]}</span>
-                  {a.kind === "quick" && <span className="pill">quick review</span>}
-                  {a.isCold && <span className="pill">cold</span>}
+                  <RatingBadge rating={a.rating} label={RATING_LABELS[a.rating]} />
+                  {a.kind === "quick" && <Badge variant="outline">quick review</Badge>}
+                  {a.isCold && <Badge variant="outline">cold</Badge>}
                 </div>
-                <p className="muted small">
+                <p className="text-xs text-muted-foreground">
                   {formatDuration(solveSeconds(a))}
                   {a.checkpoints && a.checkpoints.length > 1
                     ? ` · ${a.checkpoints.length} solutions`
@@ -158,19 +187,21 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
                 </p>
                 {a.patternClue && (
                   <p>
-                    <strong>Clue:</strong> {a.patternClue}
+                    <span className="text-muted-foreground">Clue:</span> {a.patternClue}
                   </p>
                 )}
                 {a.stuckNote && (
                   <p>
-                    <strong>Stuck on:</strong> {a.stuckNote}
+                    <span className="text-muted-foreground">Stuck on:</span> {a.stuckNote}
                   </p>
                 )}
-                {a.notes && <p style={{ whiteSpace: "pre-wrap" }}>{a.notes}</p>}
+                {a.notes && <p className="whitespace-pre-wrap">{a.notes}</p>}
                 {a.code && (
-                  <details>
-                    <summary>Code</summary>
-                    <pre className="code">{a.code}</pre>
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs text-link">Code</summary>
+                    <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-relaxed">
+                      {a.code}
+                    </pre>
                   </details>
                 )}
               </li>
@@ -180,10 +211,9 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
       </section>
 
       {versions.length >= 2 && (
-        <section className="card" aria-labelledby="diff">
-          <h2 id="diff">Code changes between attempts</h2>
+        <Panel title="Code changes between attempts">
           <CodeDiff versions={versions} />
-        </section>
+        </Panel>
       )}
     </>
   );

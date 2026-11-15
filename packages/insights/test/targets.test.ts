@@ -4,6 +4,7 @@ import {
   buildSnapshot,
   cardSummary,
   clueJournal,
+  confidenceGauge,
   countdowns,
   queueFrom,
   targetsFrom,
@@ -196,5 +197,25 @@ describe("clueJournal", () => {
       ["", ["no idea"]],
     ]);
     expect(groups.at(-1)!.name).toBe("No pattern yet");
+  });
+});
+
+describe("confidenceGauge", () => {
+  it("counts problems by their latest rating, with today's reviews and new problems", () => {
+    const snap = snapshot({ activeLists: ["prep"], dailyNewLimit: 2 }, [
+      attempt("a", new Date(2026, 9, 1), { rating: 3 }),
+      attempt("a", new Date(2026, 10, 12), { rating: 1 }), // latest: Again, due by now
+      attempt("b", new Date(2026, 10, 13), { rating: 4 }), // Easy, not due yet
+      attempt("x", new Date(2026, 8, 1), { rating: 3 }), // Good, long overdue
+    ]);
+    const g = confidenceGauge(snap);
+    expect(g.tracked).toBe(3);
+    expect(g.bands.map((b) => [b.label, b.count, b.dueToday])).toEqual([
+      ["Again", 1, 1],
+      ["Hard", 0, 0],
+      ["Good", 1, 1],
+      ["Easy", 1, 0],
+    ]);
+    expect(g).toMatchObject({ reviewsToday: 2, newToday: 2, toDo: 4 });
   });
 });

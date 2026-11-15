@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { clueJournal } from "@leettrack/insights";
+import { Panel } from "@leettrack/ui/components/panel";
+import { PageHead } from "@/components/PageHead";
 import { loadSnapshot } from "@/lib/data";
 import { formatDate } from "@/lib/util";
 
@@ -14,51 +16,54 @@ export default async function CluesPage() {
 
   return (
     <>
-      <div className="page-head">
-        <h1>Clue Journal</h1>
-        <span className="muted small">
-          {count === 0 ? "No clues yet" : `${count} clue${count === 1 ? "" : "s"}`}
-        </span>
-      </div>
+      <PageHead title="Clue Journal">
+        {count === 0 ? "No clues yet" : `${count} clue${count === 1 ? "" : "s"}`}
+      </PageHead>
 
       {groups.length === 0 ? (
-        <section className="card">
-          <p className="muted">
-            When you log an attempt, add a <strong>pattern clue</strong>: what in the problem told
-            you which pattern to use. They collect here, by pattern, as your own cheat sheet for
-            spotting patterns in new problems.
+        <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <p className="text-muted-foreground">
+            When you log an attempt, add a <strong className="text-foreground">pattern clue</strong>
+            : what in the problem told you which pattern to use. They collect here, by pattern, as
+            your own cheat sheet for spotting patterns in new problems.
           </p>
-        </section>
+        </div>
       ) : (
         <>
           <nav aria-label="Patterns">
-            <ul className="chip-grid">
+            <ul className="flex flex-wrap gap-2">
               {groups.map((g) => (
                 <li key={g.patternId}>
-                  <a className="chip-link" href={`#${anchor(g.patternId)}`}>
+                  <a
+                    className="flex items-center gap-2 rounded-full bg-card px-3 py-1 text-sm text-foreground no-underline ring-1 ring-foreground/10 transition-colors hover:bg-accent hover:no-underline"
+                    href={`#${anchor(g.patternId)}`}
+                  >
                     {g.name}
-                    <span className="chip-count">{g.entries.length}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {g.entries.length}
+                    </span>
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
-          <div className="clue-groups">
+          <div className="grid items-start gap-4 md:grid-cols-2">
             {groups.map((g) => (
-              <section
+              <Panel
                 key={g.patternId}
                 id={anchor(g.patternId)}
-                className="card"
-                aria-labelledby={`${anchor(g.patternId)}-h`}
+                className="[&_h2]:scroll-mt-20"
+                title={
+                  g.patternId ? <Link href={`/patterns#${g.patternId}`}>{g.name}</Link> : g.name
+                }
               >
-                <h2 id={`${anchor(g.patternId)}-h`}>
-                  {g.patternId ? <Link href={`/patterns#${g.patternId}`}>{g.name}</Link> : g.name}
-                </h2>
-                <ul className="list clue-list">
+                <ul className="flex flex-col gap-3">
                   {g.entries.map((e) => (
-                    <li key={e.attemptId}>
-                      <blockquote className="clue">{e.clue}</blockquote>
-                      <span className="muted small">
+                    <li key={e.attemptId} className="flex flex-col gap-1">
+                      <blockquote className="border-l-2 border-primary/60 pl-3">
+                        {e.clue}
+                      </blockquote>
+                      <span className="pl-3.5 text-xs text-muted-foreground">
                         <Link href={`/problems/${e.slug}`}>
                           {e.frontendId ? `${e.frontendId}. ` : ""}
                           {e.title}
@@ -68,7 +73,7 @@ export default async function CluesPage() {
                     </li>
                   ))}
                 </ul>
-              </section>
+              </Panel>
             ))}
           </div>
         </>

@@ -163,7 +163,9 @@ export function InterviewSettings({
           ))}
         </fieldset>
         <div className="row">
-          <button className="btn btn-primary">Add interview</button>
+          <button type="submit" className="btn btn-primary">
+            Add interview
+          </button>
         </div>
         {error && <p className="bad small">{error}</p>}
       </form>

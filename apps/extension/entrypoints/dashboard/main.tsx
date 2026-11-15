@@ -8,12 +8,33 @@ import {
   type ProblemStatus,
   type Settings,
 } from "@leettrack/core";
+import { Settings as SettingsIcon } from "lucide-react";
+import type { ConfidenceGauge as GaugeData } from "@leettrack/insights";
+import { Badge } from "@leettrack/ui/components/badge";
+import { Button } from "@leettrack/ui/components/button";
+import { ConfidenceGauge } from "@leettrack/ui/components/confidence-gauge";
+import { Input } from "@leettrack/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
+import { Notice, Panel } from "@leettrack/ui/components/panel";
+import { Switch } from "@leettrack/ui/components/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@leettrack/ui/components/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@leettrack/ui/components/tabs";
 import { problemUrl } from "@/adapters/leetcode";
+import { Logo } from "@/components/Logo";
+import { followSystemTheme } from "@/components/theme";
 import { call } from "@/lib/messaging";
 import { allPatterns, patternName } from "@/lib/patterns";
 import type { Dashboard as DashboardData, ListProgress } from "@/lib/types";
 import "@/components/base.css";
-import "./dashboard.css";
+
+followSystemTheme();
 
 type Tab = "patterns" | "lists" | "leeches";
 const pct = (x: number | undefined) => (x === undefined ? "–" : `${Math.round(x * 100)}%`);
@@ -36,13 +57,23 @@ function breakdown(m: PatternMastery): string {
   ].join("\n");
 }
 
+const LEVEL_TONE: Record<PatternMastery["level"], string> = {
+  not_started: "text-muted-foreground",
+  learning: "text-warn",
+  developing: "text-medium",
+  proficient: "text-ok",
+  mastered: "text-primary",
+};
+
 function PatternsTab({
   data,
   settings,
+  gauge,
   onSettings,
 }: {
   data: DashboardData;
   settings: Settings;
+  gauge: GaugeData | null;
   onSettings(): void;
 }) {
   const name = (id: string) => patternName(id, settings);
@@ -50,80 +81,109 @@ function PatternsTab({
     (a, b) => Number(b.attempted > 0) - Number(a.attempted > 0) || b.mastery - a.mastery,
   );
   return (
-    <>
-      <div className="insights">
-        <section className="card">
-          <h2>Weakest patterns</h2>
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        {gauge && (
+          <Panel title="To do today">
+            <ConfidenceGauge {...gauge} compact className="justify-center" />
+          </Panel>
+        )}
+        <Panel title="Weakest patterns">
           {data.insights.weakest.length === 0 ? (
-            <p className="muted">Log a few attempts to see where you're weakest.</p>
+            <p className="text-muted-foreground">
+              Log a few attempts to see where you&apos;re weakest.
+            </p>
           ) : (
-            <ol>
+            <ol className="flex flex-col gap-1.5">
               {data.insights.weakest.map((m) => (
-                <li key={m.pattern}>
-                  {name(m.pattern)} <span className="muted">· {pct(m.mastery)}</span>
+                <li key={m.pattern} className="flex justify-between gap-2">
+                  {name(m.pattern)}
+                  <span className="text-xs text-muted-foreground">{pct(m.mastery)}</span>
                 </li>
               ))}
             </ol>
           )}
-        </section>
-        <section className="card">
-          <h2>Can re-solve, hard to spot fresh</h2>
+        </Panel>
+        <Panel title="Can re-solve, hard to spot fresh">
           {data.insights.retentionColdGap.length === 0 ? (
-            <p className="muted">No big gaps between retention and cold-solve yet.</p>
+            <p className="text-muted-foreground">
+              No big gaps between retention and cold-solve yet.
+            </p>
           ) : (
-            <ul>
+            <ul className="flex flex-col gap-1.5">
               {data.insights.retentionColdGap.map((m) => (
-                <li key={m.pattern}>
-                  {name(m.pattern)}{" "}
-                  <span className="muted">
-                    · retention {pct(m.retention)}, cold {pct(m.coldSolve)}
+                <li key={m.pattern} className="flex justify-between gap-2">
+                  {name(m.pattern)}
+                  <span className="text-xs text-muted-foreground">
+                    retention {pct(m.retention)} · cold {pct(m.coldSolve)}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </Panel>
       </div>
 
-      <table className="mastery">
-        <thead>
-          <tr>
-            <th>Pattern</th>
-            <th>Level</th>
-            <th>Mastery</th>
-            <th title="Retention">R</th>
-            <th title="Cold-solve">C</th>
-            <th title="Coverage of active lists">V</th>
-            <th>Done</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((m) => (
-            <tr key={m.pattern} title={breakdown(m)}>
-              <td>{name(m.pattern)}</td>
-              <td>
-                <span className={`level level-${m.level}`}>{MASTERY_LABELS[m.level]}</span>
-              </td>
-              <td>
-                <div className="bar" aria-label={`Mastery ${pct(m.mastery)}`}>
-                  <div style={{ width: pct(m.attempted ? m.mastery : 0) }} />
-                </div>
-              </td>
-              <td>{m.attempted ? pct(m.retention) : "–"}</td>
-              <td>{m.attempted ? pct(m.coldSolve) : "–"}</td>
-              <td>{pct(m.coverage)}</td>
-              <td>
-                {m.attempted}
-                {m.listTotal ? `/${m.listTotal}` : ""}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="muted small">Hover a row to see how its score is made up.</p>
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-muted-foreground">Pattern</TableHead>
+              <TableHead className="text-muted-foreground">Level</TableHead>
+              <TableHead className="text-muted-foreground">Mastery</TableHead>
+              <TableHead className="text-muted-foreground" title="Retention">
+                R
+              </TableHead>
+              <TableHead className="text-muted-foreground" title="Cold-solve">
+                C
+              </TableHead>
+              <TableHead className="text-muted-foreground" title="Coverage of active lists">
+                V
+              </TableHead>
+              <TableHead className="text-muted-foreground">Done</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((m) => (
+              <TableRow key={m.pattern} title={breakdown(m)} className="even:bg-muted/30">
+                <TableCell>{name(m.pattern)}</TableCell>
+                <TableCell>
+                  <span className={`level text-xs ${LEVEL_TONE[m.level]}`}>
+                    {MASTERY_LABELS[m.level]}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div
+                    className="h-1.5 w-28 overflow-hidden rounded-full bg-muted"
+                    role="img"
+                    aria-label={`Mastery ${pct(m.mastery)}`}
+                  >
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: pct(m.attempted ? m.mastery : 0) }}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {m.attempted ? pct(m.retention) : "–"}
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {m.attempted ? pct(m.coldSolve) : "–"}
+                </TableCell>
+                <TableCell className="tabular-nums">{pct(m.coverage)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {m.attempted}
+                  {m.listTotal ? `/${m.listTotal}` : ""}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <p className="text-xs text-muted-foreground">Hover a row to see how its score is made up.</p>
 
       <ManageTags settings={settings} onDone={onSettings} />
-    </>
+    </div>
   );
 }
 
@@ -133,39 +193,39 @@ function ManageTags({ settings, onDone }: { settings: Settings; onDone(): void }
   const [newName, setNewName] = useState("");
   const [from, setFrom] = useState("");
   const [into, setInto] = useState("");
-  const [message, setMessage] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const run = async (fn: () => Promise<unknown>, text: string) => {
     try {
       await fn();
-      setMessage({ kind: "ok", text });
+      setMessage({ ok: true, text });
       onDone();
     } catch (e) {
-      setMessage({ kind: "bad", text: e instanceof Error ? e.message : String(e) });
+      setMessage({ ok: false, text: e instanceof Error ? e.message : String(e) });
     }
   };
   const select = (value: string, set: (v: string) => void, label: string) => (
-    <select value={value} onChange={(e) => set(e.target.value)} aria-label={label}>
-      <option value="">Choose…</option>
+    <NativeSelect value={value} onChange={(e) => set(e.target.value)} aria-label={label}>
+      <NativeSelectOption value="">Choose…</NativeSelectOption>
       {patterns.map((p) => (
-        <option key={p.id} value={p.id}>
+        <NativeSelectOption key={p.id} value={p.id}>
           {p.name}
-        </option>
+        </NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
   return (
-    <section className="card manage">
-      <h2>Manage pattern tags</h2>
-      <div className="row">
+    <Panel title="Manage pattern tags">
+      <div className="flex flex-wrap items-center gap-2">
         {select(renameId, setRenameId, "Pattern to rename")}
-        <input
+        <Input
+          className="w-48"
           placeholder="New name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           aria-label="New name"
         />
-        <button
-          className="btn"
+        <Button
+          variant="secondary"
           disabled={!renameId || !newName.trim()}
           onClick={() =>
             void run(() => call("renamePattern", { id: renameId, name: newName }), "Renamed.").then(
@@ -174,15 +234,15 @@ function ManageTags({ settings, onDone }: { settings: Settings; onDone(): void }
           }
         >
           Rename
-        </button>
+        </Button>
       </div>
-      <div className="row">
+      <div className="flex flex-wrap items-center gap-2">
         <span>Merge</span>
         {select(from, setFrom, "Pattern to merge")}
         <span>into</span>
         {select(into, setInto, "Pattern to keep")}
-        <button
-          className="btn"
+        <Button
+          variant="secondary"
           disabled={!from || !into}
           onClick={() =>
             void run(
@@ -192,46 +252,56 @@ function ManageTags({ settings, onDone }: { settings: Settings; onDone(): void }
           }
         >
           Merge
-        </button>
+        </Button>
       </div>
-      {message && <p className={message.kind}>{message.text}</p>}
-    </section>
+      {message && <Notice ok={message.ok}>{message.text}</Notice>}
+    </Panel>
   );
 }
 
+const SEGMENT_COLOR: Record<ProblemStatus, string> = {
+  mastered: "bg-primary",
+  fully_solved: "bg-ok",
+  solved_with_help: "bg-medium",
+  in_progress: "bg-muted-foreground",
+  unseen: "bg-muted",
+};
+
 function ListCard({ list, onToggle }: { list: ListProgress; onToggle(on: boolean): void }) {
   const started = list.total - list.byStatus.unseen;
+  const id = `active-${list.id}`;
   return (
-    <section className="card list-card">
-      <div className="row spread">
-        <h2>{list.name}</h2>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={list.active}
-            onChange={(e) => onToggle(e.target.checked)}
-          />
+    <section className="list-card flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-medium">{list.name}</h2>
+        <label htmlFor={id} className="flex items-center gap-2 text-xs text-muted-foreground">
           Active
+          <Switch id={id} checked={list.active} onCheckedChange={onToggle} />
         </label>
       </div>
-      <p className="muted">
+      <p className="text-xs text-muted-foreground">
         {started} of {list.total} started · {list.byStatus.fully_solved + list.byStatus.mastered}{" "}
         fully solved
       </p>
-      <div className="stack" aria-label={`${list.name} progress`}>
-        {STATUS_ORDER.filter((s) => s !== "unseen").map((s) => (
+      <div
+        className="flex h-1.5 gap-px overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`${list.name} progress`}
+      >
+        {STATUS_ORDER.filter((s) => s !== "unseen" && list.byStatus[s] > 0).map((s) => (
           <div
             key={s}
-            className={`seg seg-${s}`}
+            className={SEGMENT_COLOR[s]}
             style={{ width: `${(list.byStatus[s] / list.total) * 100}%` }}
             title={`${STATUS_LABELS[s]}: ${list.byStatus[s]}`}
           />
         ))}
       </div>
-      <ul className="legend">
+      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         {STATUS_ORDER.map((s) => (
-          <li key={s}>
-            <span className={`dot seg-${s}`} /> {STATUS_LABELS[s]} {list.byStatus[s]}
+          <li key={s} className="flex items-center gap-1">
+            <span className={`size-2 rounded-full ${SEGMENT_COLOR[s]}`} /> {STATUS_LABELS[s]}{" "}
+            {list.byStatus[s]}
           </li>
         ))}
       </ul>
@@ -243,13 +313,19 @@ function Dashboard() {
   const [tab, setTab] = useState<Tab>("patterns");
   const [data, setData] = useState<DashboardData | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [gauge, setGauge] = useState<GaugeData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     try {
-      const [d, s] = await Promise.all([call("getDashboard"), call("getSettings")]);
+      const [d, s, g] = await Promise.all([
+        call("getDashboard"),
+        call("getSettings"),
+        call("getGauge"),
+      ]);
       setData(d);
       setSettings(s);
+      setGauge(g);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -268,72 +344,85 @@ function Dashboard() {
   };
 
   return (
-    <main className="dash">
-      <header className="row spread">
-        <h1>LeetTrack dashboard</h1>
-        <button className="btn" onClick={() => browser.runtime.openOptionsPage()}>
-          Settings
-        </button>
+    <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+          <Logo className="size-7" /> LeetTrack dashboard
+        </h1>
+        <Button variant="secondary" onClick={() => browser.runtime.openOptionsPage()}>
+          <SettingsIcon /> Settings
+        </Button>
       </header>
-      <nav className="tabs" role="tablist">
-        {(
-          [
-            ["patterns", "Patterns"],
-            ["lists", "Lists"],
-            ["leeches", `Leeches${data ? ` (${data.leeches.length})` : ""}`],
-          ] as Array<[Tab, string]>
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            className="tab"
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-      {error && <p className="bad">{error}</p>}
-      {!data || !settings ? (
-        <p className="muted">Loading…</p>
-      ) : tab === "patterns" ? (
-        <PatternsTab data={data} settings={settings} onSettings={() => void load()} />
-      ) : tab === "lists" ? (
-        <div className="lists">
-          {data.lists.map((l) => (
-            <ListCard key={l.id} list={l} onToggle={(on) => void toggleList(l.id, on)} />
-          ))}
-        </div>
-      ) : data.leeches.length === 0 ? (
-        <p className="muted">
-          No leeches. A problem becomes one after being rated Again three times.
-        </p>
-      ) : (
-        <div className="leeches">
-          {data.leeches.map((l) => (
-            <section key={l.slug} className="card">
-              <div className="row spread">
-                <a href={problemUrl(l.slug)} target="_blank" rel="noreferrer">
-                  {l.title}
-                </a>
-                <span className="pill pill-bad">Again ×{l.againCount}</span>
+      {error && <p className="text-bad">{error}</p>}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
+        <TabsList>
+          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+          <TabsTrigger value="lists">Lists</TabsTrigger>
+          <TabsTrigger value="leeches">
+            Leeches{data ? ` (${data.leeches.length})` : ""}
+          </TabsTrigger>
+        </TabsList>
+        {!data || !settings ? (
+          <p className="text-muted-foreground">Loading…</p>
+        ) : (
+          <>
+            <TabsContent value="patterns">
+              <PatternsTab
+                data={data}
+                settings={settings}
+                gauge={gauge}
+                onSettings={() => void load()}
+              />
+            </TabsContent>
+            <TabsContent value="lists">
+              <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {data.lists.map((l) => (
+                  <ListCard key={l.id} list={l} onToggle={(on) => void toggleList(l.id, on)} />
+                ))}
               </div>
-              {l.stuckNotes.length === 0 ? (
-                <p className="muted">No "where I got stuck" notes yet. Add one next attempt.</p>
+            </TabsContent>
+            <TabsContent value="leeches">
+              {data.leeches.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No leeches. A problem becomes one after being rated Again three times.
+                </p>
               ) : (
-                <ul className="stuck">
-                  {l.stuckNotes.map((n) => (
-                    <li key={n.at}>
-                      <span className="muted">{new Date(n.at).toLocaleDateString()}</span> {n.note}
-                    </li>
+                <div className="grid items-start gap-4 md:grid-cols-2">
+                  {data.leeches.map((l) => (
+                    <section
+                      key={l.slug}
+                      className="flex flex-col gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <a href={problemUrl(l.slug)} target="_blank" rel="noreferrer">
+                          {l.title}
+                        </a>
+                        <Badge variant="destructive">Again ×{l.againCount}</Badge>
+                      </div>
+                      {l.stuckNotes.length === 0 ? (
+                        <p className="text-muted-foreground">
+                          No &quot;where I got stuck&quot; notes yet. Add one next attempt.
+                        </p>
+                      ) : (
+                        <ul className="stuck flex flex-col gap-1">
+                          {l.stuckNotes.map((n) => (
+                            <li key={n.at}>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(n.at).toLocaleDateString()}
+                              </span>{" "}
+                              {n.note}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
                   ))}
-                </ul>
+                </div>
               )}
-            </section>
-          ))}
-        </div>
-      )}
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </main>
   );
 }

@@ -2,6 +2,12 @@
 
 import { useRef, useState, useTransition } from "react";
 import type { Settings } from "@leettrack/core";
+import { Button } from "@leettrack/ui/components/button";
+import { Checkbox } from "@leettrack/ui/components/checkbox";
+import { Input } from "@leettrack/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
+import { Notice, Panel } from "@leettrack/ui/components/panel";
+import { Field } from "@/components/Field";
 import { deleteAccount, importJson, updateSettings, type ActionResult } from "@/lib/actions";
 
 const RETENTION: Array<[number, string]> = [
@@ -12,11 +18,7 @@ const RETENTION: Array<[number, string]> = [
 ];
 
 function Result({ r }: { r: ActionResult | null }) {
-  return r ? (
-    <p className={r.ok ? "ok small" : "bad small"} role="status">
-      {r.message}
-    </p>
-  ) : null;
+  return r ? <Notice ok={r.ok}>{r.message}</Notice> : null;
 }
 
 export function SettingsForms({ settings }: { settings: Settings }) {
@@ -35,120 +37,118 @@ export function SettingsForms({ settings }: { settings: Settings }) {
 
   return (
     <>
-      <section className="card stack" aria-labelledby="review">
-        <h2 id="review">Daily review</h2>
-        <div className="row">
-          <label className="field">
-            <span>New problems per day</span>
-            <input
-              className="input"
+      <Panel title="Daily review">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="New problems per day" htmlFor="s-new">
+            <Input
+              id="s-new"
               type="number"
               min={0}
               max={50}
               value={form.dailyNewLimit}
               onChange={(e) => setForm({ ...form, dailyNewLimit: Number(e.target.value) })}
             />
-          </label>
-          <label className="field">
-            <span>Reviews per day</span>
-            <input
-              className="input"
+          </Field>
+          <Field label="Reviews per day" htmlFor="s-reviews">
+            <Input
+              id="s-reviews"
               type="number"
               min={0}
               max={500}
               value={form.dailyReviewLimit}
               onChange={(e) => setForm({ ...form, dailyReviewLimit: Number(e.target.value) })}
             />
-          </label>
-          <label className="field">
-            <span>Target recall</span>
-            <select
-              className="input"
+          </Field>
+          <Field label="Target recall" htmlFor="s-recall">
+            <NativeSelect
+              id="s-recall"
+              className="w-full"
               value={form.desiredRetention}
               onChange={(e) => setForm({ ...form, desiredRetention: Number(e.target.value) })}
             >
               {RETENTION.map(([v, l]) => (
-                <option key={v} value={v}>
+                <NativeSelectOption key={v} value={v}>
                   {l}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-          </label>
+            </NativeSelect>
+          </Field>
         </div>
-        <label className="check">
-          <input
-            type="checkbox"
+        <label className="flex items-center gap-2">
+          <Checkbox
             checked={form.hideTopicsWhileSolving}
-            onChange={(e) => setForm({ ...form, hideTopicsWhileSolving: e.target.checked })}
+            onCheckedChange={(on) => setForm({ ...form, hideTopicsWhileSolving: on === true })}
           />
           Hide LeetCode&apos;s topic tags while the extension&apos;s timer runs
         </label>
-        <div className="row">
-          <button
-            className="btn btn-primary"
+        <div>
+          <Button
             disabled={pending}
             onClick={() => start(async () => setReview(await updateSettings(form)))}
           >
             Save
-          </button>
+          </Button>
         </div>
         <Result r={review} />
-      </section>
+      </Panel>
 
-      <section className="card stack" aria-labelledby="data">
-        <h2 id="data">Your data</h2>
-        <p className="muted small" style={{ margin: 0 }}>
-          Download everything as JSON, or import a file exported from the extension. Importing
-          merges: nothing is deleted, and newer edits win.
-        </p>
-        <div className="row">
-          <a className="btn" href="/export">
-            Export JSON
-          </a>
-          <button className="btn" disabled={pending} onClick={() => fileRef.current?.click()}>
-            Import JSON
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            hidden
-            aria-label="Import file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              start(async () => setData(await importJson(await file.text())));
-              e.target.value = "";
-            }}
-          />
-        </div>
-        <Result r={data} />
-      </section>
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <Panel
+          title="Your data"
+          description="Download everything as JSON, or import a file exported from the extension. Importing merges: nothing is deleted, and newer edits win."
+        >
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" asChild>
+              <a
+                href="/export"
+                className="text-secondary-foreground no-underline hover:no-underline"
+              >
+                Export JSON
+              </a>
+            </Button>
+            <Button variant="secondary" disabled={pending} onClick={() => fileRef.current?.click()}>
+              Import JSON
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              hidden
+              aria-label="Import file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                start(async () => setData(await importJson(await file.text())));
+                e.target.value = "";
+              }}
+            />
+          </div>
+          <Result r={data} />
+        </Panel>
 
-      <section className="card stack" aria-labelledby="danger">
-        <h2 id="danger">Delete account</h2>
-        <p className="muted small" style={{ margin: 0 }}>
-          Permanently deletes your account and everything synced to it. Data still in the extension
-          on your computer stays there until you remove it.
-        </p>
-        <div className="row">
-          <input
-            className="input"
-            placeholder='Type "delete"'
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            aria-label="Type delete to confirm"
-          />
-          <button
-            className="btn btn-danger"
-            disabled={pending || confirm.trim().toLowerCase() !== "delete"}
-            onClick={() => start(async () => setDanger(await deleteAccount(confirm)))}
-          >
-            Delete my account
-          </button>
-        </div>
-        <Result r={danger} />
-      </section>
+        <Panel
+          title="Delete account"
+          description="Permanently deletes your account and everything synced to it. Data still in the extension on your computer stays there until you remove it."
+        >
+          <div className="flex flex-wrap gap-2">
+            <Input
+              className="min-w-0 flex-1"
+              placeholder='Type "delete"'
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              aria-label="Type delete to confirm"
+            />
+            <Button
+              variant="destructive"
+              disabled={pending || confirm.trim().toLowerCase() !== "delete"}
+              onClick={() => start(async () => setDanger(await deleteAccount(confirm)))}
+            >
+              Delete my account
+            </Button>
+          </div>
+          <Result r={danger} />
+        </Panel>
+      </div>
     </>
   );
 }

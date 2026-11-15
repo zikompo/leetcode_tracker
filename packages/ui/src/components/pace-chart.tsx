@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 
 export interface PaceChartPoint {
@@ -63,47 +64,98 @@ export function PaceChart({
   };
 
   return (
-    <figure className="pace">
-      <div className="pace-legend small muted" aria-hidden>
-        <span>
-          <i className="pace-key pace-key-actual" /> Started
+    <figure className="m-0" data-slot="pace-chart">
+      <div className="mb-1 flex gap-4 text-xs text-muted-foreground" aria-hidden>
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block w-4 border-t-2 border-primary" /> Started
         </span>
-        <span>
-          <i className="pace-key pace-key-needed" /> Steady pace
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block w-4 border-t-2 border-dashed border-muted-foreground" /> Steady
+          pace
         </span>
       </div>
-      <div className="pace-plot" ref={box}>
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
+      <div className="relative" ref={box}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          role="img"
+          aria-label={title}
+          className="block h-auto w-full overflow-visible"
+        >
           {ticks.map((t) => (
             <g key={t}>
-              <line className="pace-grid" x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} />
-              <text className="pace-tick" x={PAD.left - 6} y={y(t) + 4} textAnchor="end">
+              <line
+                stroke="var(--border)"
+                strokeWidth={1}
+                x1={PAD.left}
+                x2={W - PAD.right}
+                y1={y(t)}
+                y2={y(t)}
+              />
+              <text
+                className="fill-muted-foreground text-[11px]"
+                x={PAD.left - 6}
+                y={y(t) + 4}
+                textAnchor="end"
+              >
                 {t}
               </text>
             </g>
           ))}
-          <text className="pace-tick" x={PAD.left} y={H - 6}>
+          <text className="fill-muted-foreground text-[11px]" x={PAD.left} y={H - 6}>
             {points[0]!.label}
           </text>
-          <text className="pace-tick" x={W - PAD.right} y={H - 6} textAnchor="end">
+          <text
+            className="fill-muted-foreground text-[11px]"
+            x={W - PAD.right}
+            y={H - 6}
+            textAnchor="end"
+          >
             {points.at(-1)!.label}
           </text>
-          <path className="pace-needed" d={path(points.map((p) => p.needed))} />
-          <path className="pace-actual" d={path(actual)} />
+          <path
+            fill="none"
+            stroke="var(--muted-foreground)"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            d={path(points.map((p) => p.needed))}
+          />
+          <path
+            fill="none"
+            stroke="var(--primary)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            d={path(actual)}
+          />
           {lastActual >= 0 && (
-            <circle className="pace-dot" cx={x(lastActual)} cy={y(actual[lastActual]!)} r={4.5} />
+            <circle
+              fill="var(--primary)"
+              stroke="var(--card)"
+              strokeWidth={2}
+              cx={x(lastActual)}
+              cy={y(actual[lastActual]!)}
+              r={4.5}
+            />
           )}
           {h && hover !== null && (
             <g pointerEvents="none">
               <line
-                className="pace-cross"
+                stroke="var(--muted-foreground)"
+                strokeWidth={1}
                 x1={x(hover)}
                 x2={x(hover)}
                 y1={PAD.top}
                 y2={PAD.top + plotH}
               />
               {h.actual !== undefined && (
-                <circle className="pace-dot" cx={x(hover)} cy={y(h.actual)} r={4.5} />
+                <circle
+                  fill="var(--primary)"
+                  stroke="var(--card)"
+                  strokeWidth={2}
+                  cx={x(hover)}
+                  cy={y(h.actual)}
+                  r={4.5}
+                />
               )}
             </g>
           )}
@@ -119,7 +171,7 @@ export function PaceChart({
         </svg>
         {h && hover !== null && (
           <div
-            className="pace-tip small"
+            className="pointer-events-none absolute top-2 flex flex-col gap-0.5 rounded-md border bg-popover px-2.5 py-1.5 text-xs whitespace-nowrap text-popover-foreground shadow-md"
             role="status"
             style={{
               left: `${(x(hover) / W) * 100}%`,

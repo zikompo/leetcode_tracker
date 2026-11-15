@@ -30,7 +30,9 @@ test("dashboard: today's queue, streak, activity, weak spots and leeches", async
   await expect(page.getByRole("region", { name: "Summary" })).toContainText("reviews due today");
   const today = page.getByRole("region", { name: "Today" });
   await expect(today.getByRole("link").first()).toBeVisible();
-  await expect(page.locator(".heatmap rect")).toHaveCount(26 * 7 - 6 + new Date().getDay());
+  await expect(page.locator("[data-slot=heatmap] rect")).toHaveCount(
+    26 * 7 - 6 + new Date().getDay(),
+  );
   await expect(
     page.getByRole("region", { name: "Weakest patterns" }).getByRole("link"),
   ).not.toHaveCount(0);
@@ -47,7 +49,7 @@ test("problems: filter, sort and open one", async ({ page }) => {
   const solved = await rows.count();
   expect(solved).toBeGreaterThan(0);
   expect(solved).toBeLessThan(total);
-  await expect(page.locator("tbody .status").first()).toHaveText("Fully solved");
+  await expect(page.locator("tbody [data-slot=status]").first()).toHaveText("Fully solved");
   await page.getByLabel("Status").selectOption("");
   await page.getByLabel("Search problems").fill("two sum");
   await expect(rows).not.toHaveCount(0);
@@ -59,11 +61,11 @@ test("problems: filter, sort and open one", async ({ page }) => {
 test("problem detail: timeline, code diff and manual status", async ({ page }) => {
   await page.goto(`/problems/${DIFF_SLUG}`);
   await expect(page.getByRole("heading", { name: /^Attempts \(\d+\)$/ })).toBeVisible();
-  await expect(page.locator(".timeline > li")).not.toHaveCount(0);
+  await expect(page.locator("[data-slot=timeline] > li")).not.toHaveCount(0);
   const diff = page.getByLabel("Code diff");
   await expect(diff).toBeVisible();
   await expect(page.getByText(/\d+ lines changed/)).toBeVisible();
-  await expect(diff.locator(".add, .del").first()).toBeVisible();
+  await expect(diff.locator("[data-change]").first()).toBeVisible();
   await page.getByRole("button", { name: "Set" }).click();
   await expect(page.getByText("Demo mode: changes aren't saved.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Open on LeetCode/ })).toHaveAttribute(
@@ -75,12 +77,12 @@ test("problem detail: timeline, code diff and manual status", async ({ page }) =
 
 test("patterns: level and the parts of the score", async ({ page }) => {
   await page.goto("/patterns");
-  const first = page.locator("section.card[id]").first();
+  const first = page.locator("[data-slot=pattern]").first();
   await expect(first).toContainText("Retention");
   await expect(first).toContainText("Cold-solve");
   await expect(first).toContainText("Coverage");
   const notStarted = page.getByRole("region", { name: "Not started" });
-  await expect(notStarted.locator(".chip-link").first()).toBeVisible();
+  await expect(notStarted.locator("[data-slot=chip]").first()).toBeVisible();
   await expect(notStarted.getByRole("link")).toHaveCount(0); // no spoilers
   await expectNoPageOverflow(page);
 });
@@ -95,6 +97,22 @@ test("lists: seed and custom lists with progress", async ({ page }) => {
     .fill("https://leetcode.com/problems/clone-graph/");
   await mine.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("Demo mode: changes aren't saved.")).toBeVisible();
+  await expectNoPageOverflow(page);
+});
+
+test("dashboard: the gauge shows today's work and problems by last rating", async ({ page }) => {
+  await page.goto("/dashboard");
+  const panel = page.getByRole("region", { name: "To do today" });
+  await expect(
+    panel.getByRole("img", { name: /problems? to do today: \d+ reviews?/ }),
+  ).toBeVisible();
+  const legend = panel.getByRole("list", { name: "Last ratings" });
+  await expect(legend.getByRole("listitem")).toHaveCount(4);
+  await expect(legend).toContainText("Again");
+  await expect(legend).toContainText("Easy");
+  // Hovering a rating shows its numbers in the middle.
+  await legend.getByRole("listitem").filter({ hasText: "Good" }).hover();
+  await expect(panel.getByText(/^\d+ due today$/)).toBeVisible();
   await expectNoPageOverflow(page);
 });
 
@@ -113,7 +131,7 @@ test("plan: each interview with pace, a day-by-day plan and a form", async ({ pa
   await expect(phone).toContainText("in 6 days");
   await expect(phone).toContainText("Graphs to revisit");
   await expect(phone.getByRole("img", { name: /Phone screen: \d+ of 4 started/ })).toBeVisible();
-  const days = phone.locator(".plan-day");
+  const days = phone.locator("[data-slot=plan-day]");
   await expect(days.first()).toContainText("Today");
   await expect(days.last()).toContainText("Interview day");
   await expect(phone).toContainText("Reviews only");
@@ -163,11 +181,41 @@ test("export downloads a LeetTrack file", async ({ request }) => {
   expect(body.attempts.length).toBeGreaterThan(30);
 });
 
-test("dark mode follows the system", async ({ page }) => {
+test("the theme follows the system, and the toggle overrides it", async ({ page }) => {
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/dashboard");
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe("rgb(23, 24, 27)");
+  expect(await bg()).toBe("rgb(26, 26, 26)");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.reload();
+  expect(await bg()).toBe("rgb(247, 248, 250)");
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  expect(await bg()).toBe("rgb(26, 26, 26)");
+  await page.reload(); // remembered
+  expect(await bg()).toBe("rgb(26, 26, 26)");
+});
+
+test("text is set in Geist, code in Geist Mono", async ({ page }) => {
+  await page.goto("/dashboard");
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const family = (el: Element) => getComputedStyle(el).fontFamily.split(",")[0]!.trim();
+    const code = document.createElement("code");
+    document.body.append(code);
+    const sans = family(document.body);
+    const mono = family(code);
+    await Promise.all([document.fonts.load(`14px ${sans}`), document.fonts.load(`14px ${mono}`)]);
+    return {
+      sans,
+      mono,
+      sansLoaded: document.fonts.check(`14px ${sans}`),
+      monoLoaded: document.fonts.check(`14px ${mono}`),
+    };
+  });
+  expect(loaded.sans.toLowerCase()).toContain("geist");
+  expect(loaded.mono.toLowerCase()).toContain("geist");
+  expect(loaded.sansLoaded).toBe(true);
+  expect(loaded.monoLoaded).toBe(true);
 });
 
 test("connecting the extension isn't offered in the demo", async ({ page }) => {

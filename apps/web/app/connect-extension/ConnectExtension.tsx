@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@leettrack/ui/components/button";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type ChromeRuntime = {
@@ -59,33 +60,29 @@ export function ConnectExtension({
 
   if (state === "done") {
     return (
-      <p className="ok">
+      <p className="text-ok">
         Connected. The extension now syncs as {viewerName}; you can close this tab.
       </p>
     );
   }
   return (
-    <div className="stack">
-      <p className="muted">
+    <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground">
         Signed in as <strong>{viewerName}</strong>. Connecting lets the extension sync your attempts
         with this account.
       </p>
       {confirmId && (
-        <p className="small muted">
+        <p className="text-xs text-muted-foreground">
           Extension id <code>{extensionId}</code>. Only continue if you opened this page from
           LeetTrack yourself.
         </p>
       )}
-      <div className="row">
-        <button
-          className="btn btn-primary"
-          onClick={() => void connect()}
-          disabled={state === "sending"}
-        >
+      <div>
+        <Button onClick={() => void connect()} disabled={state === "sending"}>
           {state === "sending" ? "Connecting…" : "Connect extension"}
-        </button>
+        </Button>
       </div>
-      {state === "error" && <p className="bad">{error}</p>}
+      {state === "error" && <p className="text-bad">{error}</p>}
     </div>
   );
 }

@@ -1,176 +1,236 @@
 import Link from "next/link";
 import {
   activity,
+  confidenceGauge,
   countdowns,
   dashboardFrom,
   patternName,
   queueFrom,
   statsFrom,
 } from "@leettrack/insights";
-import { Heatmap } from "@/components/Heatmap";
+import { Badge } from "@leettrack/ui/components/badge";
+import { ConfidenceGauge } from "@leettrack/ui/components/confidence-gauge";
+import { Heatmap } from "@leettrack/ui/components/heatmap";
+import { Panel, Stat } from "@leettrack/ui/components/panel";
+import { cn } from "@leettrack/ui/lib/utils";
+import { PageHead } from "@/components/PageHead";
 import { QueueList } from "@/components/QueueList";
 import { loadSnapshot } from "@/lib/data";
 import { pct } from "@/lib/util";
 
 export const metadata = { title: "Dashboard" };
 
+/** Reviews listed before the rest fold away, so Today stays about as tall as the side column. */
+const SHOWN_REVIEWS = 10;
+/** Rows in Today from which the pattern cards move to the side column. */
+const HEAVY_TODAY_ROWS = 7;
+
 export default async function DashboardPage() {
   const { snap } = await loadSnapshot();
   const queue = queueFrom(snap);
   const stats = statsFrom(snap);
   const dash = dashboardFrom(snap);
+  const gauge = confidenceGauge(snap);
   const act = activity(snap.attempts, snap.now);
   const name = (id: string) => patternName(id, snap.settings);
   const reviews = queue.items.filter((i) => i.kind === "review");
   const fresh = queue.items.filter((i) => i.kind === "new");
   const upcoming = countdowns(snap);
 
+  // The pattern cards sit under Today on a light day, and move to the side column on a heavy
+  // one, so the two columns come out about the same height.
+  const shownRows = Math.min(reviews.length, SHOWN_REVIEWS) + fresh.length;
+  const heavyToday = shownRows >= HEAVY_TODAY_ROWS;
+  const weakest = (
+    <Panel title="Weakest patterns">
+      {dash.insights.weakest.length === 0 ? (
+        <p className="text-muted-foreground">Log some attempts to see where you&apos;re weakest.</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {dash.insights.weakest.map((m) => (
+            <li key={m.pattern} className="flex items-center justify-between gap-2">
+              <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
+              <span className="text-xs text-muted-foreground">mastery {pct(m.mastery)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+  const coldGap = (
+    <Panel title="Can re-solve, hard to spot fresh">
+      {dash.insights.retentionColdGap.length === 0 ? (
+        <p className="text-muted-foreground">
+          No patterns where you remember solutions but miss them cold.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {dash.insights.retentionColdGap.map((m) => (
+            <li key={m.pattern} className="flex items-center justify-between gap-2">
+              <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
+              <span className="text-xs text-muted-foreground">
+                retention {pct(m.retention)} · cold {pct(m.coldSolve)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+
   return (
     <>
-      <div className="page-head">
-        <h1>Dashboard</h1>
-        <span className="muted small">
-          {snap.now.toLocaleDateString(undefined, {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
-        </span>
+      <PageHead title="Dashboard">
+        {snap.now.toLocaleDateString(undefined, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })}
+      </PageHead>
+
+      {/*
+        Two rows. In each, the cards share a height and the last card of each column grows to
+        fill it, so every edge lines up. Below lg the columns dissolve (contents) and the cards
+        flow in reading order, small ones in pairs.
+      */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Panel
+          className="max-lg:order-1 md:col-span-2 lg:col-span-2"
+          title="To do today"
+          bodyClassName="flex-1 justify-center"
+        >
+          <ConfidenceGauge
+            {...gauge}
+            className="max-sm:flex-col max-sm:items-stretch max-sm:[&>div:first-child]:self-center"
+          />
+        </Panel>
+        <div className="flex flex-col gap-4 max-lg:contents">
+          {upcoming.length > 0 && (
+            <Panel className="max-lg:order-2" title="Interviews">
+              <ul className="flex flex-col gap-1">
+                {upcoming.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href="/plan"
+                      className="-mx-2 flex items-baseline gap-3 rounded-md px-2 py-1 text-foreground no-underline transition-colors hover:bg-accent hover:no-underline"
+                    >
+                      <strong className="w-10 text-right text-xl font-semibold text-primary tabular-nums">
+                        {c.daysLeft === 0 ? "Today" : c.daysLeft}
+                      </strong>{" "}
+                      <span className="min-w-0 [overflow-wrap:anywhere]">
+                        {c.daysLeft === 0 ? "" : `day${c.daysLeft === 1 ? "" : "s"} to `}
+                        {c.label}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+          <Panel
+            className={cn("flex-1 max-lg:order-3", upcoming.length === 0 && "md:col-span-2")}
+            title="Summary"
+          >
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <Stat value={reviews.length} label="reviews due today" />
+              <Stat value={act.streak} label="day streak" />
+              <Stat value={stats.problemsAttempted} label="problems attempted" />
+              <Stat value={stats.fullySolved} label="fully solved" />
+              <Stat value={stats.attempts} label="attempts logged" />
+              <Stat value={stats.leeches} label="leeches" />
+            </div>
+          </Panel>
+        </div>
       </div>
 
-      {upcoming.length > 0 && (
-        <section className="countdowns" aria-label="Interviews">
-          {upcoming.map((c) => (
-            <Link key={c.id} href="/plan" className="card countdown">
-              <strong>{c.daysLeft === 0 ? "Today" : c.daysLeft}</strong>{" "}
-              <span>
-                {c.daysLeft === 0 ? "" : `day${c.daysLeft === 1 ? "" : "s"} to `}
-                {c.label}
-              </span>
-            </Link>
-          ))}
-        </section>
-      )}
-
-      <section className="stats" aria-label="Summary">
-        <div className="card stat">
-          <strong>{reviews.length}</strong>
-          <span>reviews due today</span>
-        </div>
-        <div className="card stat">
-          <strong>{act.streak}</strong>
-          <span>day streak</span>
-        </div>
-        <div className="card stat">
-          <strong>{stats.problemsAttempted}</strong>
-          <span>problems attempted</span>
-        </div>
-        <div className="card stat">
-          <strong>{stats.fullySolved}</strong>
-          <span>fully solved</span>
-        </div>
-        <div className="card stat">
-          <strong>{stats.leeches}</strong>
-          <span>leeches</span>
-        </div>
-      </section>
-
-      <div className="grid">
-        <section className="card" aria-labelledby="today">
-          <h2 id="today">Today</h2>
+      {/*
+        Light day: Today beside Activity, and the pattern cards beside Leeches, each pair sharing
+        a row. Heavy day: Today spans the side column, which takes the pattern cards too.
+      */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Panel
+          className={cn("max-lg:order-1 md:col-span-2", heavyToday && "lg:row-span-4")}
+          title="Today"
+        >
           {reviews.length === 0 && fresh.length === 0 ? (
-            <p className="muted">
+            <p className="text-muted-foreground">
               {queue.noNewFor
                 ? `Nothing due. No new problems before ${queue.noNewFor.label}: rest up.`
                 : "Nothing due, and no new problems queued."}
             </p>
           ) : (
-            <div className="stack">
-              {reviews.length > 0 && <QueueList items={reviews} />}
+            <>
+              {reviews.length > 0 && <QueueList items={reviews.slice(0, SHOWN_REVIEWS)} />}
+              {reviews.length > SHOWN_REVIEWS && (
+                <details>
+                  <summary className="cursor-pointer text-xs text-link">
+                    Show {reviews.length - SHOWN_REVIEWS} more due today
+                  </summary>
+                  <div className="mt-2">
+                    <QueueList items={reviews.slice(SHOWN_REVIEWS)} />
+                  </div>
+                </details>
+              )}
               {queue.reviewsDue > reviews.length && (
-                <p className="muted small">
+                <p className="text-xs text-muted-foreground">
                   {queue.reviewsDue - reviews.length} more due, held back by your daily limit.
                 </p>
               )}
               {queue.noNewFor && (
-                <p className="muted small">
+                <p className="text-xs text-muted-foreground">
                   No new problems today: {queue.noNewFor.label} is close, so it&apos;s reviews only.
                 </p>
               )}
               {fresh.length > 0 && (
                 <>
-                  <span className="muted small">
+                  <span className="text-xs text-muted-foreground">
                     {upcoming.length > 0 ? "New, from your plan" : "New from your active lists"}
                   </span>
                   <QueueList items={fresh} />
                 </>
               )}
-            </div>
+            </>
           )}
-        </section>
-
-        <section className="card" aria-labelledby="activity">
-          <h2 id="activity">Activity</h2>
+        </Panel>
+        <Panel className="max-lg:order-2" title="Activity">
           <Heatmap activity={act} />
-          <p className="muted small">
-            {act.total} attempts on {act.activeDays} days in the last six months.
+          <p className="text-xs text-muted-foreground">
+            {act.total} attempts on {act.activeDays} day{act.activeDays === 1 ? "" : "s"} in the
+            last six months.
           </p>
-        </section>
-      </div>
-
-      <div className="grid">
-        <section className="card" aria-labelledby="weakest">
-          <h2 id="weakest">Weakest patterns</h2>
-          {dash.insights.weakest.length === 0 ? (
-            <p className="muted">Log some attempts to see where you&apos;re weakest.</p>
-          ) : (
-            <ul className="list">
-              {dash.insights.weakest.map((m) => (
-                <li key={m.pattern}>
-                  <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
-                  <span className="muted small">mastery {pct(m.mastery)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section className="card" aria-labelledby="gap">
-          <h2 id="gap">Can re-solve, hard to spot fresh</h2>
-          {dash.insights.retentionColdGap.length === 0 ? (
-            <p className="muted">No patterns where you remember solutions but miss them cold.</p>
-          ) : (
-            <ul className="list">
-              {dash.insights.retentionColdGap.map((m) => (
-                <li key={m.pattern}>
-                  <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
-                  <span className="muted small">
-                    retention {pct(m.retention)} · cold {pct(m.coldSolve)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section className="card" aria-labelledby="leeches">
-          <h2 id="leeches">Leeches</h2>
+        </Panel>
+        {heavyToday ? (
+          <>
+            <div className="grid max-lg:order-4">{weakest}</div>
+            <div className="grid max-lg:order-4">{coldGap}</div>
+          </>
+        ) : (
+          <div className="grid gap-4 max-lg:order-4 md:col-span-2 md:grid-cols-2">
+            {weakest}
+            {coldGap}
+          </div>
+        )}
+        <Panel className="max-lg:order-3" title="Leeches">
           {dash.leeches.length === 0 ? (
-            <p className="muted">None. A problem becomes one after three Agains.</p>
+            <p className="text-muted-foreground">None. A problem becomes one after three Agains.</p>
           ) : (
-            <ul className="list">
+            <ul className="flex flex-col gap-2.5">
               {dash.leeches.map((l) => (
-                <li key={l.slug} className="stack" style={{ alignItems: "stretch", gap: 2 }}>
-                  <span className="row spread">
+                <li key={l.slug} className="flex flex-col gap-0.5">
+                  <span className="flex items-center justify-between gap-2">
                     <Link href={`/problems/${l.slug}`}>{l.title}</Link>
-                    <span className="pill pill-bad">Again ×{l.againCount}</span>
+                    <Badge variant="destructive">Again ×{l.againCount}</Badge>
                   </span>
                   {l.stuckNotes.at(-1) && (
-                    <span className="muted small">Last stuck on: {l.stuckNotes.at(-1)!.note}</span>
+                    <span className="text-xs text-muted-foreground">
+                      Last stuck on: {l.stuckNotes.at(-1)!.note}
+                    </span>
                   )}
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </Panel>
       </div>
     </>
   );

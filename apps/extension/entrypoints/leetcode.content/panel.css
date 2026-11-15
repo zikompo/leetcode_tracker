@@ -1,26 +1,42 @@
 /* LeetTrack in-page panel. Lives in a Shadow DOM, so nothing here leaks into LeetCode. */
 
+/*
+ * The same LeetCode-inspired palette as the website and extension pages (packages/ui theme.css),
+ * as plain variables: Tailwind's @property rules don't take effect inside a shadow root, so the
+ * panel keeps its own stylesheet. Light follows LeetCode's light theme, dark its dark one.
+ */
 .lt-root {
   --bg: #ffffff;
-  --surface: #f6f7f9;
-  --surface-2: #eceef2;
-  --border: #dde1e7;
-  --text: #1c2129;
-  --muted: #5d6673;
-  --accent: #2f6fdf;
+  --surface: #f7f8fa;
+  --surface-2: #eceef1;
+  --border: rgb(0 0 0 / 10%);
+  --text: #262626;
+  --muted: #5c5f66;
+  /* Orange text is too faint on white, so light mode uses a deeper orange. */
+  --accent: #b25e00;
   --accent-text: #ffffff;
-  --accent-soft: #e6eefc;
-  --ok: #1f8a4c;
-  --ok-soft: #e3f4ea;
-  --bad: #c2382f;
+  --accent-soft: #fff1dc;
+  --ok: #1a8a42;
+  --ok-soft: #e2f5e8;
+  --bad: #d1302b;
   --bad-soft: #fbe9e7;
-  --warn: #b26a00;
+  --warn: #a46d00;
   --warn-soft: #fdf1dc;
-  --info: #2f6fdf;
-  --shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+  --info: #b25e00;
+  --shadow: 0 12px 32px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 8%);
 
+  /* Registered by lib/fonts.ts; system fonts until it loads, or if it can't. */
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "LeetTrack Geist",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-size: 13px;
   line-height: 1.45;
   color: var(--text);
@@ -28,23 +44,23 @@
 
 .lt-root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1f2125;
-  --surface: #282a2f;
-  --surface-2: #32353b;
-  --border: #3b3f46;
-  --text: #e8eaed;
-  --muted: #a1a7b0;
-  --accent: #6a9cf0;
-  --accent-text: #0f1520;
-  --accent-soft: #263552;
-  --ok: #4cc283;
-  --ok-soft: #1d3a2a;
-  --bad: #ef7a70;
-  --bad-soft: #43221f;
-  --warn: #f0b153;
-  --warn-soft: #3f3020;
-  --info: #6a9cf0;
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --bg: #262626;
+  --surface: #303030;
+  --surface-2: #3a3a3a;
+  --border: rgb(255 255 255 / 10%);
+  --text: #eff1f6;
+  --muted: #a3a5aa;
+  --accent: #ffa116;
+  --accent-text: #1a1a1a;
+  --accent-soft: rgb(255 161 22 / 15%);
+  --ok: #2cbb5d;
+  --ok-soft: rgb(44 187 93 / 15%);
+  --bad: #ef4743;
+  --bad-soft: rgb(239 71 67 / 15%);
+  --warn: #ffc01e;
+  --warn-soft: rgb(255 192 30 / 15%);
+  --info: #ffa116;
+  --shadow: 0 12px 32px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 30%);
 }
 
 .lt-root *,
@@ -331,7 +347,7 @@
   min-height: 64px;
 }
 .lt-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "LeetTrack Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   margin-top: 6px;
   white-space: pre;
@@ -404,21 +420,22 @@
   font-weight: 400;
   color: var(--muted);
 }
+/* Same colours as the website's confidence gauge (Again, Hard, Good, Easy). */
 .lt-rating-1 {
-  --tone: var(--bad);
-  --tone-soft: var(--bad-soft);
+  --tone: #d0304d;
+  --tone-soft: rgb(208 48 77 / 14%);
 }
 .lt-rating-2 {
-  --tone: var(--warn);
-  --tone-soft: var(--warn-soft);
+  --tone: #c4861a;
+  --tone-soft: rgb(196 134 26 / 14%);
 }
 .lt-rating-3 {
-  --tone: var(--ok);
-  --tone-soft: var(--ok-soft);
+  --tone: #4c8df6;
+  --tone-soft: rgb(76 141 246 / 14%);
 }
 .lt-rating-4 {
-  --tone: var(--info);
-  --tone-soft: var(--accent-soft);
+  --tone: #1f9e68;
+  --tone-soft: rgb(31 158 104 / 14%);
 }
 .lt-rating[aria-checked="true"] {
   border-color: var(--tone);
@@ -578,7 +595,7 @@
   overflow: auto;
   border-radius: 6px;
   background: var(--surface);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "LeetTrack Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
 }
 

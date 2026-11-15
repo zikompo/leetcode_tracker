@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
 /** WXT_* settings from the environment, then .env.local and .env (environment wins). */
@@ -22,6 +23,7 @@ const website = new URL(readEnv("WXT_WEBSITE_URL") || "http://localhost:3000");
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
+  vite: () => ({ plugins: [tailwindcss()] }),
   manifest: {
     name: "LeetTrack",
     description: "Log every LeetCode attempt, with notes and history, without leaving the page.",

@@ -1,5 +1,6 @@
 import { STATUS_LABELS } from "@leettrack/core";
 import { listProgress, statusOf } from "@leettrack/insights";
+import { PageHead } from "@/components/PageHead";
 import { loadSnapshot } from "@/lib/data";
 import { ListManager, type ListView } from "./ListManager";
 
@@ -25,12 +26,9 @@ export default async function ListsPage() {
   }));
   return (
     <>
-      <div className="page-head">
-        <h1>Lists</h1>
-        <span className="muted small">
-          Active lists feed new problems into your daily queue, in this order.
-        </span>
-      </div>
+      <PageHead title="Lists">
+        Active lists feed new problems into your daily queue, in this order.
+      </PageHead>
       <ListManager lists={lists} activeLists={snap.settings.activeLists} />
     </>
   );

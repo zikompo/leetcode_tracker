@@ -1,3 +1,5 @@
+import { Panel } from "@leettrack/ui/components/panel";
+import { PageHead } from "@/components/PageHead";
 import { loadSnapshot } from "@/lib/data";
 import { SettingsForms } from "./SettingsForms";
 
@@ -7,52 +9,49 @@ export default async function SettingsPage() {
   const { viewer, snap } = await loadSnapshot();
   return (
     <>
-      <div className="page-head">
-        <h1>Settings</h1>
-        <span className="muted small">
-          Shared with the extension: changes here reach it on its next sync.
-        </span>
-      </div>
-      <section className="card" aria-labelledby="account">
-        <h2 id="account">Account</h2>
-        <p style={{ margin: 0 }}>
-          {viewer.demo ? (
-            "Demo account (no sign-in)."
+      <PageHead title="Settings">
+        Shared with the extension: changes here reach it on its next sync.
+      </PageHead>
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <Panel title="Account">
+          <p>
+            {viewer.demo ? (
+              "Demo account (no sign-in)."
+            ) : (
+              <>
+                Signed in with GitHub as <strong>{viewer.name}</strong>.
+              </>
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            To connect the extension, open its settings and click Sign in.
+          </p>
+        </Panel>
+        <Panel title="GitHub">
+          {snap.settings.github ? (
+            <p>
+              The extension commits your Accepted solutions to{" "}
+              <a
+                href={`https://github.com/${snap.settings.github.owner}/${snap.settings.github.repo}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {snap.settings.github.owner}/{snap.settings.github.repo}
+              </a>{" "}
+              ({snap.settings.github.branch}), with notes{" "}
+              {snap.settings.github.includeNotes ? "included" : "left out"}.
+            </p>
           ) : (
-            <>
-              Signed in with GitHub as <strong>{viewer.name}</strong>.
-            </>
+            <p className="text-muted-foreground">
+              Not set up. To commit each Accepted solution to a repo of yours, connect GitHub in the
+              extension&apos;s settings.
+            </p>
           )}
-        </p>
-        <p className="muted small">
-          To connect the extension, open its settings and click Sign in.
-        </p>
-      </section>
-      <section className="card" aria-labelledby="github">
-        <h2 id="github">GitHub</h2>
-        {snap.settings.github ? (
-          <p style={{ margin: 0 }}>
-            The extension commits your Accepted solutions to{" "}
-            <a
-              href={`https://github.com/${snap.settings.github.owner}/${snap.settings.github.repo}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {snap.settings.github.owner}/{snap.settings.github.repo}
-            </a>{" "}
-            ({snap.settings.github.branch}), with notes{" "}
-            {snap.settings.github.includeNotes ? "included" : "left out"}.
+          <p className="text-xs text-muted-foreground">
+            The GitHub sign-in stays in the extension; this site never sees it.
           </p>
-        ) : (
-          <p className="muted" style={{ margin: 0 }}>
-            Not set up. To commit each Accepted solution to a repo of yours, connect GitHub in the
-            extension&apos;s settings.
-          </p>
-        )}
-        <p className="muted small">
-          The GitHub sign-in stays in the extension; this site never sees it.
-        </p>
-      </section>
+        </Panel>
+      </div>
       <SettingsForms settings={snap.settings} />
     </>
   );

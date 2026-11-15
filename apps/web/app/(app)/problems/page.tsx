@@ -1,5 +1,6 @@
 import { STATUS_LABELS } from "@leettrack/core";
 import { allLists, patternName, problemRows } from "@leettrack/insights";
+import { PageHead } from "@/components/PageHead";
 import { loadSnapshot } from "@/lib/data";
 import { formatDate, formatDue } from "@/lib/util";
 import { ProblemsTable, type Row } from "./ProblemsTable";
@@ -40,12 +41,9 @@ export default async function ProblemsPage({
   }));
   return (
     <>
-      <div className="page-head">
-        <h1>Problems</h1>
-        <span className="muted small">
-          Everything you&apos;ve attempted, plus your active lists.
-        </span>
-      </div>
+      <PageHead title="Problems">
+        Everything you&apos;ve attempted, plus your active lists.
+      </PageHead>
       <ProblemsTable rows={rows} initialPattern={pattern ?? ""} />
     </>
   );

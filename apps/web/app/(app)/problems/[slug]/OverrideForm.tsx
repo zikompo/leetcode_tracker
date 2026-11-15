@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import type { Optimality, ProblemStatus } from "@leettrack/core";
+import { Button } from "@leettrack/ui/components/button";
+import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
+import { Notice } from "@leettrack/ui/components/panel";
 import { setStatusOverride, type ActionResult } from "@/lib/actions";
 
 const OPTIONS: Array<[ProblemStatus, string]> = [
@@ -27,45 +30,43 @@ export function OverrideForm({
     start(async () => setResult(await setStatusOverride(slug, o)));
 
   return (
-    <div className="stack">
-      <div className="row">
-        <select
-          className="input"
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <NativeSelect
           value={status}
           onChange={(e) => setStatus(e.target.value as ProblemStatus)}
           aria-label="Manual status"
         >
           {OPTIONS.map(([v, l]) => (
-            <option key={v} value={v}>
+            <NativeSelectOption key={v} value={v}>
               {l}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
         {status === "fully_solved" && (
-          <select
-            className="input"
+          <NativeSelect
             value={optimality}
             onChange={(e) => setOptimality(e.target.value as Optimality)}
             aria-label="Optimality"
           >
-            <option value="optimal">Optimal</option>
-            <option value="suboptimal">Suboptimal</option>
-          </select>
+            <NativeSelectOption value="optimal">Optimal</NativeSelectOption>
+            <NativeSelectOption value="suboptimal">Suboptimal</NativeSelectOption>
+          </NativeSelect>
         )}
-        <button
-          className="btn"
+        <Button
+          variant="secondary"
           disabled={pending}
           onClick={() => run({ status, ...(status === "fully_solved" ? { optimality } : {}) })}
         >
           Set
-        </button>
+        </Button>
         {current && (
-          <button className="btn" disabled={pending} onClick={() => run(null)}>
+          <Button variant="ghost" disabled={pending} onClick={() => run(null)}>
             Clear
-          </button>
+          </Button>
         )}
       </div>
-      {result && <p className={result.ok ? "ok small" : "bad small"}>{result.message}</p>}
+      {result && <Notice ok={result.ok}>{result.message}</Notice>}
     </div>
   );
 }

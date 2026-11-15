@@ -7,7 +7,13 @@ import type {
   Settings,
   StatusOverride,
 } from "@leettrack/core";
-import type { Countdown, Dashboard, ProblemState, Stats } from "@leettrack/insights";
+import type {
+  ConfidenceGauge,
+  Countdown,
+  Dashboard,
+  ProblemState,
+  Stats,
+} from "@leettrack/insights";
 import type { ProblemMetadata } from "../adapters/leetcode";
 import type { SyncStatus } from "./account";
 import type { AiStatus, AnalysisInput, ComplexitySuggestion } from "./ai";
@@ -67,6 +73,8 @@ export interface Api {
   getDashboard(): Dashboard;
   /** Upcoming interviews, soonest first. */
   getCountdowns(): Countdown[];
+  /** Today's work and problems by last rating, for the gauge. */
+  getGauge(): ConfidenceGauge;
   renamePattern(input: { id: string; name: string }): Settings;
   /** Fold one pattern into another everywhere; the source disappears from the taxonomy. */
   mergePattern(input: { from: string; into: string }): Settings;

@@ -37,3 +37,29 @@ test("an interview date shows a countdown and makes the last days reviews only",
     popup.getByRole("region", { name: "New problems" }).locator(".queue-row"),
   ).toHaveCount(3);
 });
+
+test("the extension's pages and the log panel use Geist", async ({ context, extensionId }) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  const pageFont = await popup.evaluate(async () => {
+    await document.fonts.load('14px "Geist Variable"');
+    return {
+      family: getComputedStyle(document.body).fontFamily,
+      loaded: document.fonts.check('14px "Geist Variable"'),
+    };
+  });
+  expect(pageFont.family).toMatch(/^"?Geist Variable/);
+  expect(pageFont.loaded).toBe(true);
+
+  const page = await context.newPage();
+  await page.goto("https://leetcode.com/problems/two-sum/description/");
+  await page.click("#submit-ac");
+  const panel = page.getByRole("region", { name: "LeetTrack" });
+  await expect(panel.getByRole("button", { name: "Save attempt" })).toBeVisible();
+  const panelFont = await panel.evaluate((el) => ({
+    family: getComputedStyle(el).fontFamily,
+    loaded: document.fonts.check('13px "LeetTrack Geist"'),
+  }));
+  expect(panelFont.family).toMatch(/^"?LeetTrack Geist/);
+  expect(panelFont.loaded).toBe(true);
+});

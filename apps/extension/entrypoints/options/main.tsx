@@ -9,8 +9,12 @@ import { AiSettings } from "./AiSettings";
 import { InterviewSettings } from "./InterviewSettings";
 import { ReviewSettings } from "./ReviewSettings";
 import { browser } from "wxt/browser";
+import { Logo } from "@/components/Logo";
+import { followSystemTheme } from "@/components/theme";
 import "@/components/base.css";
 import "./options.css";
+
+followSystemTheme();
 
 const AUTO_OPEN: Array<[PanelAutoOpen, string, string]> = [
   ["accepted", "On Accepted", "Open the log panel when a submission is accepted."],
@@ -60,7 +64,9 @@ function Options() {
   return (
     <main className="options">
       <header className="row spread">
-        <h1>LeetTrack settings</h1>
+        <h1>
+          <Logo className="size-7" /> LeetTrack settings
+        </h1>
         <button
           className="btn"
           onClick={() =>
@@ -71,8 +77,8 @@ function Options() {
         </button>
       </header>
 
-      <section className="card">
-        <h2>When should the log panel open?</h2>
+      <section className="card" aria-labelledby="auto-open-heading">
+        <h2 id="auto-open-heading">When should the log panel open?</h2>
         <div className="radios" role="radiogroup">
           {AUTO_OPEN.map(([value, label, hint]) => (
             <label key={value} className="radio">
@@ -85,8 +91,8 @@ function Options() {
                 }
               />
               <span>
-                <strong>{label}</strong>
-                <span className="muted">{hint}</span>
+                <strong className="font-medium">{label}</strong>
+                <span className="muted small">{hint}</span>
               </span>
             </label>
           ))}
@@ -102,8 +108,8 @@ function Options() {
 
       <AiSettings />
 
-      <section className="card">
-        <h2>Your data</h2>
+      <section className="card" aria-labelledby="data-heading">
+        <h2 id="data-heading">Your data</h2>
         <p className="muted">
           Everything is stored locally in this browser.
           {stats && ` ${stats.attempts} attempts across ${stats.problemsAttempted} problems.`}

@@ -1,0 +1,173 @@
+/*
+ * LeetTrack theme: LeetCode-inspired (near-black surfaces, orange accent, compact type).
+ * Dark is the default; `data-theme="light"` on <html> (or on the panel's shadow host) switches.
+ * `:host` makes the same tokens work inside the log panel's shadow root.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+:host {
+  color-scheme: dark;
+  --radius: 0.5rem;
+
+  --background: #1a1a1a;
+  --foreground: #eff1f6;
+  --card: #282828;
+  --card-foreground: #eff1f6;
+  --popover: #303030;
+  --popover-foreground: #eff1f6;
+  --primary: #ffa116;
+  --primary-foreground: #1a1a1a;
+  --secondary: #3a3a3a;
+  --secondary-foreground: #eff1f6;
+  --muted: #333333;
+  --muted-foreground: #a3a5aa;
+  --accent: #363636;
+  --accent-foreground: #eff1f6;
+  --destructive: #ef4743;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 14%);
+  --ring: rgb(255 161 22 / 60%);
+
+  /* Links and accent text: orange reads fine on dark. */
+  --link: #ffa116;
+
+  --easy: #00b8a3;
+  --medium: #ffc01e;
+  --hard: #ef4743;
+
+  --ok: #2cbb5d;
+  --warn: #ffc01e;
+  --bad: #ef4743;
+
+  /* Last rating (the confidence gauge). Checked with the dataviz palette validator. */
+  --rating-again: #d0304d;
+  --rating-hard: #c4861a;
+  --rating-good: #4c8df6;
+  --rating-easy: #1f9e68;
+
+  --heat-0: #333333;
+  --heat-1: #0e4429;
+  --heat-2: #006d32;
+  --heat-3: #26a641;
+  --heat-4: #39d353;
+}
+
+[data-theme="light"],
+:host([data-theme="light"]) {
+  color-scheme: light;
+  --background: #f7f8fa;
+  --foreground: #262626;
+  --card: #ffffff;
+  --card-foreground: #262626;
+  --popover: #ffffff;
+  --popover-foreground: #262626;
+  --primary: #ffa116;
+  --primary-foreground: #1a1a1a;
+  --secondary: #eceef1;
+  --secondary-foreground: #262626;
+  --muted: #f0f1f3;
+  --muted-foreground: #5c5f66;
+  --accent: #eceef1;
+  --accent-foreground: #262626;
+  --destructive: #d1302b;
+  --border: rgb(0 0 0 / 10%);
+  --input: rgb(0 0 0 / 15%);
+  --ring: rgb(255 161 22 / 60%);
+
+  /* Orange text is too faint on white: a darker shade for links. */
+  --link: #b25e00;
+
+  --easy: #007d6e;
+  --medium: #a46d00;
+  --hard: #d1302b;
+
+  --ok: #1a8a42;
+  --warn: #a46d00;
+  --bad: #d1302b;
+
+  --heat-0: #ebedf0;
+  --heat-1: #9be9a8;
+  --heat-2: #40c463;
+  --heat-3: #30a14e;
+  --heat-4: #216e39;
+}
+
+@theme inline {
+  /*
+   * Geist. The website sets --font-geist-sans/--font-geist-mono through next/font; extension
+   * pages load the same files as "Geist Variable"/"Geist Mono Variable". System fonts cover any
+   * character Geist's Latin files don't.
+   */
+  --font-sans:
+    var(--font-geist-sans, "Geist Variable"), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    var(--font-geist-mono, "Geist Mono Variable"), Menlo, SFMono-Regular, Consolas,
+    "Liberation Mono", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-link: var(--link);
+  --color-easy: var(--easy);
+  --color-medium: var(--medium);
+  --color-hard: var(--hard);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-rating-again: var(--rating-again);
+  --color-rating-hard: var(--rating-hard);
+  --color-rating-good: var(--rating-good);
+  --color-rating-easy: var(--rating-easy);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background font-sans text-sm text-foreground antialiased;
+  }
+  a {
+    color: var(--link);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  code,
+  pre,
+  kbd {
+    @apply font-mono;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}

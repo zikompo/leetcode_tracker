@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import type { ProblemStatus } from "@leettrack/core";
 import type { ListProgress } from "@leettrack/insights";
+import { X } from "lucide-react";
+import { Button } from "@leettrack/ui/components/button";
+import { Input } from "@leettrack/ui/components/input";
+import { Notice } from "@leettrack/ui/components/panel";
+import { Switch } from "@leettrack/ui/components/switch";
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { StatusLabel } from "@/components/StatusLabel";
 import {
   addToList,
   createList,
@@ -18,6 +25,13 @@ export interface ListView extends ListProgress {
 }
 
 const SEGMENTS: ProblemStatus[] = ["mastered", "fully_solved", "solved_with_help", "in_progress"];
+const SEGMENT_COLOR: Record<ProblemStatus, string> = {
+  mastered: "bg-primary",
+  fully_solved: "bg-ok",
+  solved_with_help: "bg-medium",
+  in_progress: "bg-muted-foreground",
+  unseen: "bg-muted",
+};
 const LABEL: Record<ProblemStatus, string> = {
   mastered: "Mastered",
   fully_solved: "Fully solved",
@@ -48,69 +62,94 @@ export function ListManager({ lists, activeLists }: { lists: ListView[]; activeL
     );
 
   return (
-    <div className="stack">
-      {result && (
-        <p className={result.ok ? "ok small" : "bad small"} role="status">
-          {result.message}
-        </p>
-      )}
-      <div className="grid">
+    <div className="flex flex-col gap-4">
+      {result && <Notice ok={result.ok}>{result.message}</Notice>}
+      <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
         {lists.map((l) => {
           const started = l.total - l.byStatus.unseen;
+          const switchId = `active-${l.id}`;
           return (
-            <section key={l.id} className="card stack" aria-label={l.name}>
-              <div className="row spread">
-                <h3>{l.name}</h3>
-                <label className="check small">
-                  <input
-                    type="checkbox"
+            <section
+              key={l.id}
+              className="flex min-w-0 flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+              aria-label={l.name}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">{l.name}</h3>
+                <label
+                  htmlFor={switchId}
+                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                  Active
+                  <Switch
+                    id={switchId}
                     checked={l.active}
                     disabled={pending}
-                    onChange={(e) => toggle(l.id, e.target.checked)}
+                    onCheckedChange={(on) => toggle(l.id, on)}
                   />
-                  Active
                 </label>
               </div>
-              <span className="muted small">
+              <span className="text-xs text-muted-foreground">
                 {started} of {l.total} started · {l.byStatus.fully_solved + l.byStatus.mastered}{" "}
                 fully solved
               </span>
-              <div className="bar" aria-label={`${l.name} progress`}>
+              <div
+                className="flex h-1.5 gap-px overflow-hidden rounded-full bg-muted"
+                role="img"
+                aria-label={`${l.name} progress: ${SEGMENTS.map((s) => `${LABEL[s]} ${l.byStatus[s]}`).join(", ")}`}
+              >
                 {SEGMENTS.map((s) =>
-                  l.total ? (
+                  l.total && l.byStatus[s] ? (
                     <span
                       key={s}
-                      className={`seg-${s}`}
+                      className={SEGMENT_COLOR[s]}
                       style={{ width: `${(l.byStatus[s] / l.total) * 100}%` }}
                       title={`${LABEL[s]}: ${l.byStatus[s]}`}
                     />
                   ) : null,
                 )}
               </div>
+              <ul
+                className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
+                aria-hidden
+              >
+                {SEGMENTS.filter((s) => l.byStatus[s] > 0).map((s) => (
+                  <li key={s} className="flex items-center gap-1">
+                    <span className={`size-2 rounded-full ${SEGMENT_COLOR[s]}`} />
+                    {LABEL[s]} {l.byStatus[s]}
+                  </li>
+                ))}
+              </ul>
               {l.kind === "custom" && (
                 <>
                   {l.items.length > 0 && (
-                    <ul className="list">
+                    <ul className="flex flex-col gap-1">
                       {l.items.map((p) => (
-                        <li key={p.slug}>
-                          <Link href={`/problems/${p.slug}`}>{p.title}</Link>
-                          <span className="row">
-                            <span className={`status status-${p.status}`}>{p.statusLabel}</span>
-                            <button
-                              className="btn small"
+                        <li key={p.slug} className="flex items-center justify-between gap-2">
+                          <Link
+                            href={`/problems/${p.slug}`}
+                            className="min-w-0 truncate text-foreground"
+                          >
+                            {p.title}
+                          </Link>
+                          <span className="flex items-center gap-1">
+                            <StatusLabel status={p.status} label={p.statusLabel} />
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
                               disabled={pending}
                               aria-label={`Remove ${p.title}`}
                               onClick={() => run(() => removeFromList(l.id, p.slug))}
                             >
-                              ×
-                            </button>
+                              <X />
+                            </Button>
                           </span>
                         </li>
                       ))}
                     </ul>
                   )}
                   <form
-                    className="row"
+                    className="flex gap-2"
                     onSubmit={(e) => {
                       e.preventDefault();
                       run(
@@ -119,29 +158,28 @@ export function ListManager({ lists, activeLists }: { lists: ListView[]; activeL
                       );
                     }}
                   >
-                    <input
-                      className="input"
-                      style={{ flex: 1 }}
+                    <Input
                       placeholder="LeetCode URL or slug"
                       value={adding[l.id] ?? ""}
                       onChange={(e) => setAdding((a) => ({ ...a, [l.id]: e.target.value }))}
                       aria-label={`Add a problem to ${l.name}`}
                     />
-                    <button className="btn" type="submit" disabled={pending}>
+                    <Button variant="secondary" type="submit" disabled={pending}>
                       Add
-                    </button>
+                    </Button>
                   </form>
-                  <button
-                    className="btn btn-danger small"
-                    style={{ alignSelf: "flex-start" }}
-                    disabled={pending}
-                    onClick={() => {
-                      if (window.confirm(`Delete the list “${l.name}”? Your attempts stay.`))
-                        run(() => deleteList(l.id));
-                    }}
-                  >
-                    Delete list
-                  </button>
+                  <div>
+                    <ConfirmButton
+                      variant="destructive"
+                      disabled={pending}
+                      title={`Delete “${l.name}”?`}
+                      description="The list goes; your attempts on its problems stay."
+                      confirm="Delete list"
+                      onConfirm={() => run(() => deleteList(l.id))}
+                    >
+                      Delete list
+                    </ConfirmButton>
+                  </div>
                 </>
               )}
             </section>
@@ -149,7 +187,7 @@ export function ListManager({ lists, activeLists }: { lists: ListView[]; activeL
         })}
       </div>
       <form
-        className="card row"
+        className="flex flex-wrap gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
         onSubmit={(e) => {
           e.preventDefault();
           run(
@@ -158,17 +196,16 @@ export function ListManager({ lists, activeLists }: { lists: ListView[]; activeL
           );
         }}
       >
-        <input
-          className="input"
-          style={{ flex: 1 }}
+        <Input
+          className="min-w-0 flex-1"
           placeholder="New list name, e.g. Graphs to revisit"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           aria-label="New list name"
         />
-        <button className="btn btn-primary" type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending}>
           Create list
-        </button>
+        </Button>
       </form>
     </div>
   );

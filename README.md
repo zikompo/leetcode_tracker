@@ -19,6 +19,7 @@ The extension still works fully offline; an account is optional.
 packages/core       Pure TS domain logic: types, status, rating, FSRS, queue, mastery, merge, export
 packages/seed       Pattern taxonomy, Blind 75 / NeetCode 150 / NeetCode 250 with suggested patterns
 packages/insights   Views shared by the extension and the website: queue, stats, dashboard, plans, clues
+packages/ui         Shared UI: LeetCode-style theme (Tailwind v4), shadcn/ui components, gauge and charts
 supabase            Database schema (migrations) and its tests (PGlite)
 apps/extension      WXT + React MV3 extension
   adapters/leetcode   The only code that knows LeetCode URLs and payload shapes

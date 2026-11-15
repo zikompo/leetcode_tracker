@@ -72,7 +72,8 @@ export default defineBackground(() => {
     try {
       const queue = await service.getQueue();
       const count = queue.items.filter((i) => i.kind === "review").length;
-      await browser.action.setBadgeBackgroundColor({ color: "#2f6fdf" });
+      await browser.action.setBadgeBackgroundColor({ color: "#ffa116" });
+      await browser.action.setBadgeTextColor?.({ color: "#1a1a1a" });
       await browser.action.setBadgeText({ text: count > 0 ? String(count) : "" });
     } catch (err) {
       console.warn("[leettrack] badge", err);

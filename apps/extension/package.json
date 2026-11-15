@@ -10,7 +10,8 @@
     "postinstall": "wxt prepare",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "e2e": "WXT_SUPABASE_URL=http://127.0.0.1:54329 WXT_SUPABASE_ANON_KEY=e2e-anon-key WXT_WEBSITE_URL=http://localhost:3000 WXT_GITHUB_CLIENT_ID=Iv1.e2e WXT_GITHUB_APP_SLUG=leettrack-e2e WXT_GITHUB_WEB_URL=http://127.0.0.1:54330 WXT_GITHUB_API_URL=http://127.0.0.1:54330 wxt build && playwright test"
+    "e2e": "WXT_SUPABASE_URL=http://127.0.0.1:54329 WXT_SUPABASE_ANON_KEY=e2e-anon-key WXT_WEBSITE_URL=http://localhost:3000 WXT_GITHUB_CLIENT_ID=Iv1.e2e WXT_GITHUB_APP_SLUG=leettrack-e2e WXT_GITHUB_WEB_URL=http://127.0.0.1:54330 WXT_GITHUB_API_URL=http://127.0.0.1:54330 wxt build && playwright test",
+    "zip:store": "WXT_STORE_BUILD=1 wxt zip"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

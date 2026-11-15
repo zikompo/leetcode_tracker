@@ -1,0 +1,11 @@
+# Never upload personal data, keys or local builds to Vercel.
+.local
+**/.env*
+!**/.env.example
+**/node_modules
+**/.next
+**/.output
+**/.wxt
+**/test-results
+**/playwright-report
+docs/web-store

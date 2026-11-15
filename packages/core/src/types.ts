@@ -27,6 +27,11 @@ export interface Problem {
   lists: string[];
   twists?: string[];
   statusOverride?: StatusOverride;
+  /**
+   * A due date set by hand (snooze or reschedule). It replaces the scheduler's date until the
+   * next review after it was set; then the scheduler takes over again.
+   */
+  dueOverride?: { due: string; at: string };
   updatedAt: string;
 }
 
@@ -149,9 +154,26 @@ export interface AttemptDraft {
   code?: string;
   /** Only meaningful on a first attempt: user has seen this problem before (not cold). */
   seenBefore?: boolean;
+  /** Answer to the twist prompt on a mature review (spec 5.4). */
+  twistAnswer?: string;
 }
 
 /** A user-made problem list (spec 12.1). Deleted lists stay as tombstones so deletes sync. */
+export type MockOutcome = "passed" | "mixed" | "struggled";
+
+/** A mock interview (spec 7.1, page 9). Synced; a delete is a tombstone. */
+export interface MockInterview {
+  id: string;
+  /** Local calendar date, YYYY-MM-DD. */
+  date: string;
+  /** A LeetCode slug, or a short description when it wasn't a LeetCode problem. */
+  problem?: string;
+  outcome?: MockOutcome;
+  notes: string;
+  deleted?: boolean;
+  updatedAt: string;
+}
+
 export interface CustomList {
   id: string;
   name: string;
@@ -207,6 +229,10 @@ export interface Settings {
    * exactly when recall drops to that, so the same bar would almost never call for an extra.
    */
   targetRetention: number;
+  /** Where the log panel lives: floating on the LeetCode page, or Chrome's side panel. */
+  panelStyle: "floating" | "side";
+  /** Minutes before the panel nudges one rung up the hint ladder (spec 5.5); 0 turns it off. */
+  timeboxMinutes: number;
   updatedAt: string;
 }
 
@@ -220,5 +246,7 @@ export const DEFAULT_SETTINGS: Settings = {
   targetBufferDays: 2,
   targetNoNewDays: 2,
   targetRetention: 0.95,
+  timeboxMinutes: 20,
+  panelStyle: "floating",
   updatedAt: new Date(0).toISOString(),
 };

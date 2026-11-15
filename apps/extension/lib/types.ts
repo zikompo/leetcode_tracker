@@ -1,4 +1,5 @@
 import type {
+  HelpLevel,
   Attempt,
   Checkpoint,
   CustomList,
@@ -11,12 +12,13 @@ import type {
   ConfidenceGauge,
   Countdown,
   Dashboard,
+  PatternDetail,
   ProblemState,
   Stats,
 } from "@leettrack/insights";
 import type { ProblemMetadata } from "../adapters/leetcode";
 import type { SyncStatus } from "./account";
-import type { AiStatus, AnalysisInput, ComplexitySuggestion } from "./ai";
+import type { AiStatus, AnalysisInput, ComplexitySuggestion, TwistInput } from "./ai";
 import type { RepoChoice } from "./github/api";
 import type { GitHubStatus } from "./github/service";
 
@@ -36,6 +38,11 @@ export interface AttemptSession extends SessionObservation {
   /** Submission ids already recorded, to dedupe repeated events. */
   submissionIds: string[];
   checkpoints?: SessionCheckpoint[];
+  /** The highest rung of the hint ladder taken during the timebox nudges (spec 5.5). */
+  helpTaken?: Exclude<HelpLevel, "none">;
+  /** The latest rung the panel has offered, and the latest one dismissed. */
+  nudgeSeen?: number;
+  nudgeDismissed?: number;
 }
 
 export type {
@@ -51,6 +58,12 @@ export interface ImportSummary {
   attemptsAdded: number;
   attemptsUpdated: number;
   problemsMerged: number;
+  /** Mock interviews added or changed. */
+  mocksMerged: number;
+  /** Interview dates added (prep-tracker imports). */
+  interviewsAdded?: number;
+  /** The file was a prep-tracker export. */
+  fromTracker?: boolean;
 }
 
 /** Every request the background service worker answers. */
@@ -58,6 +71,8 @@ export interface Api {
   getProblemState(slug: string): ProblemState;
   upsertProblemMeta(meta: ProblemMetadata): ProblemState;
   saveAttempt(input: { attempt: Attempt; patterns: string[] }): ProblemState;
+  /** Push a review back `days` days; returns the updated queue. */
+  snoozeReview(input: { slug: string; days: number }): Queue;
   setStatusOverride(input: { slug: string; override: StatusOverride | null }): ProblemState;
   getSession(slug: string): AttemptSession | null;
   putSession(session: AttemptSession): void;
@@ -71,6 +86,8 @@ export interface Api {
   getQueue(): Queue;
   /** Pattern mastery, list progress and leeches for the dashboard. */
   getDashboard(): Dashboard;
+  /** One pattern's problems and trend, for the dashboard's expandable rows. */
+  getPatternDetail(id: string): PatternDetail;
   /** Upcoming interviews, soonest first. */
   getCountdowns(): Countdown[];
   /** Today's work and problems by last rating, for the gauge. */
@@ -86,6 +103,10 @@ export interface Api {
   getAiStatus(): AiStatus;
   /** Ask the configured model for a complexity estimate. Sends the code to that provider. */
   analyzeComplexity(input: AnalysisInput): ComplexitySuggestion;
+  /** Ask the configured model for "what if" twists. Sends only the problem's name. */
+  generateTwists(input: TwistInput): string[];
+  /** Replace a problem's twists (yours or drafted). Synced with the problem. */
+  setTwists(input: { slug: string; twists: string[] }): ProblemState;
   /** Account and sync state, for the popup and settings. */
   getSyncStatus(): SyncStatus;
   syncNow(): SyncStatus;

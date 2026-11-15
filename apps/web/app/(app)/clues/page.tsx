@@ -54,7 +54,7 @@ export default async function CluesPage() {
                 id={anchor(g.patternId)}
                 className="[&_h2]:scroll-mt-20"
                 title={
-                  g.patternId ? <Link href={`/patterns#${g.patternId}`}>{g.name}</Link> : g.name
+                  g.patternId ? <Link href={`/patterns/${g.patternId}`}>{g.name}</Link> : g.name
                 }
               >
                 <ul className="flex flex-col gap-3">

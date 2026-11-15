@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
+import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
 const PROBLEM = "https://leetcode.com/problems/two-sum/description/";
+
+/** The content script has mounted (and so is listening for submissions). */
+const extensionReady = (page: Page) =>
+  page.getByRole("button", { name: "Open LeetTrack log panel" }).waitFor({ state: "attached" });
 
 test("Accepted opens the panel pre-filled, and the saved attempt shows after reopening", async ({
   context,
@@ -10,6 +15,7 @@ test("Accepted opens the panel pre-filled, and the saved attempt shows after reo
   expect(extensionId).toBeTruthy();
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
 
   const launcher = page.getByRole("button", { name: "Open LeetTrack log panel" });
   await expect(launcher).toBeVisible();
@@ -104,6 +110,7 @@ test("Accepted opens the panel pre-filled, and the saved attempt shows after reo
 
   // Reopen the problem: the attempt is in the history.
   await page.goto(PROBLEM);
+  await extensionReady(page);
   await page.getByRole("button", { name: "Open LeetTrack log panel" }).click();
   const panel2 = page.getByRole("region", { name: "LeetTrack" });
   await panel2.getByRole("tab", { name: "History (1)" }).click();
@@ -181,6 +188,7 @@ test("opening the Editorial marks the solution as viewed and pre-selects help", 
 test("Run results are never logged as submissions", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
   // A Run poll uses the same check URL but an id that never came from a Submit.
   await page.evaluate(() => fetch("/submissions/detail/999/check/"));
   await page.evaluate(() => fetch("/submissions/detail/999/check/"));
@@ -191,6 +199,7 @@ test("Run results are never logged as submissions", async ({ context }) => {
 test("the timer can be stopped and resumed by hand", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
   await page.getByRole("button", { name: "Open LeetTrack log panel" }).click();
   const panel = page.getByRole("region", { name: "LeetTrack" });
   await expect(panel.getByText("timing")).toBeVisible();
@@ -209,6 +218,7 @@ test("re-submitting without new work adds no checkpoint, and a checkpoint can be
 }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
   await page.click("#submit-ac");
   const panel = page.getByRole("region", { name: "LeetTrack" });
   await expect(panel.locator(".lt-solution")).toHaveCount(1);
@@ -230,6 +240,7 @@ test("re-submitting without new work adds no checkpoint, and a checkpoint can be
 test("one tap saves an Accepted solution with the suggested answers", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
   await page.click("#submit-ac");
   const panel = page.getByRole("region", { name: "LeetTrack" });
   const summary = panel.getByRole("region", { name: "Attempt summary" });
@@ -248,6 +259,7 @@ test("one tap saves an Accepted solution with the suggested answers", async ({ c
 test("after opening the Editorial, the summary says solved with help", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  await extensionReady(page);
   await page.click("#editorial");
   await page.click("#submit-ac");
   const summary = page
@@ -255,4 +267,45 @@ test("after opening the Editorial, the summary says solved with help", async ({ 
     .getByRole("region", { name: "Attempt summary" });
   await expect(summary).toContainText("With help · Read the key idea");
   await expect(summary).toContainText("Hard"); // light help suggests Hard
+});
+
+test("the side panel drives the same log as the page", async ({ context, extensionId }) => {
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await extensionReady(page);
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const tabId = await worker.evaluate(async () => {
+    const chrome = (globalThis as unknown as { chrome: typeof browser }).chrome;
+    const [tab] = await chrome.tabs.query({ url: "https://leetcode.com/problems/*" });
+    return tab!.id!;
+  });
+  const side = await context.newPage();
+  await side.goto(`chrome-extension://${extensionId}/sidepanel.html?tab=${tabId}`);
+  const panel = side.getByRole("region", { name: "LeetTrack" });
+  await expect(panel).toContainText("1. Two Sum");
+  await page.click("#submit-ac");
+  await expect(panel.locator(".lt-result")).toHaveText("Accepted");
+  await panel.getByRole("button", { name: "Save attempt" }).click();
+  await expect(side.getByText("Attempt saved.")).toBeVisible();
+  // The page's own panel saw the same save.
+  await expect(page.getByText("Attempt saved.")).toBeVisible();
+});
+
+test("with the side panel chosen, the page only offers to open it", async ({
+  context,
+  extensionId,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.getByRole("radio", { name: /In Chrome's side panel/ }).click();
+  await expect(options.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("button", { name: "Open LeetTrack log panel" })).toHaveCount(0);
+  await page.click("#submit-ac");
+  const pill = page.getByRole("status", { name: "LeetTrack" });
+  await expect(pill).toContainText("Accepted. Log it in LeetTrack's side panel.");
+  await expect(pill.getByRole("button", { name: "Open side panel" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "LeetTrack" })).toHaveCount(0);
 });

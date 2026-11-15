@@ -6,6 +6,7 @@ import {
   type Attempt,
   type CardState,
   type CustomList,
+  type MockInterview,
   type Difficulty,
   type Problem,
   type Scheduler,
@@ -20,6 +21,8 @@ export interface Snapshot {
   attempts: readonly Attempt[];
   settings: Settings;
   customLists: readonly CustomList[];
+  /** Mock interviews, newest first; deleted ones left out. */
+  mocks: readonly MockInterview[];
   scheduler: Scheduler;
   /** Each problem's attempts, oldest first. */
   bySlug: Map<string, Attempt[]>;
@@ -49,7 +52,11 @@ export function buildSnapshot(data: DataSet, now: Date = new Date()): Snapshot {
   const cards = new Map<string, CardState>();
   for (const [slug, list] of bySlug) {
     const card = replayCard(slug, list, scheduler);
-    if (card) cards.set(slug, card);
+    if (!card) continue;
+    // A snooze or reschedule holds until the next review after it was set.
+    const override = problemMap.get(slug)?.dueOverride;
+    const holds = override && (!card.lastReview || override.at > card.lastReview);
+    cards.set(slug, holds ? { ...card, due: override.due } : card);
   }
   const merges = settings.patternMerges ?? {};
   return {
@@ -57,6 +64,9 @@ export function buildSnapshot(data: DataSet, now: Date = new Date()): Snapshot {
     attempts: data.attempts,
     settings,
     customLists: (data.customLists ?? []).filter((l) => !l.deleted),
+    mocks: (data.mocks ?? [])
+      .filter((m) => !m.deleted)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)),
     scheduler,
     bySlug,
     problemMap,

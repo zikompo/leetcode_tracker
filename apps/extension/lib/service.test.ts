@@ -110,11 +110,13 @@ describe("service", () => {
       attemptsAdded: 1,
       attemptsUpdated: 0,
       problemsMerged: 1,
+      mocksMerged: 0,
     });
     expect(await b.importData(json)).toEqual({
       attemptsAdded: 0,
       attemptsUpdated: 0,
       problemsMerged: 0,
+      mocksMerged: 0,
     });
     const st = await b.getProblemState("two-sum");
     expect(st.attempts[0]?.notes).toBe("hash map");

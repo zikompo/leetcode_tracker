@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { Fragment, StrictMode, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { browser } from "wxt/browser";
 import {
@@ -8,14 +8,14 @@ import {
   type ProblemStatus,
   type Settings,
 } from "@leettrack/core";
-import { Settings as SettingsIcon } from "lucide-react";
-import type { ConfidenceGauge as GaugeData } from "@leettrack/insights";
+import { ChevronRight, Settings as SettingsIcon } from "lucide-react";
+import type { ConfidenceGauge as GaugeData, PatternDetail } from "@leettrack/insights";
 import { Badge } from "@leettrack/ui/components/badge";
 import { Button } from "@leettrack/ui/components/button";
 import { ConfidenceGauge } from "@leettrack/ui/components/confidence-gauge";
 import { Input } from "@leettrack/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@leettrack/ui/components/native-select";
-import { Notice, Panel } from "@leettrack/ui/components/panel";
+import { Difficulty, Notice, Panel } from "@leettrack/ui/components/panel";
 import { Switch } from "@leettrack/ui/components/switch";
 import {
   Table,
@@ -65,6 +65,50 @@ const LEVEL_TONE: Record<PatternMastery["level"], string> = {
   mastered: "text-primary",
 };
 
+/** The problems behind one pattern row: attempted ones, then unstarted ones on request. */
+function PatternProblems({ detail }: { detail: PatternDetail }) {
+  const item = (slug: string, title: string, frontendId?: string, difficulty?: string) => (
+    <li key={slug} className="flex items-center justify-between gap-3 py-0.5">
+      <a href={problemUrl(slug)} target="_blank" rel="noreferrer" className="truncate">
+        {frontendId ? `${frontendId}. ` : ""}
+        {title}
+      </a>
+      {difficulty && <Difficulty value={difficulty} />}
+    </li>
+  );
+  return (
+    <div className="grid gap-4 py-1 md:grid-cols-2">
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">Attempted ({detail.attempted.length})</span>
+        {detail.attempted.length === 0 ? (
+          <span className="text-muted-foreground">None yet.</span>
+        ) : (
+          <ul>
+            {detail.attempted.map((r) =>
+              item(r.slug, `${r.title} · ${STATUS_LABELS[r.status]}`, r.frontendId, r.difficulty),
+            )}
+          </ul>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">
+          Not started in your lists ({detail.unstarted.length})
+        </span>
+        {detail.unstarted.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-xs text-link">
+              Show them (the pattern is a hint)
+            </summary>
+            <ul className="mt-1">
+              {detail.unstarted.map((p) => item(p.slug, p.title, p.frontendId, p.difficulty))}
+            </ul>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PatternsTab({
   data,
   settings,
@@ -80,6 +124,14 @@ function PatternsTab({
   const rows = [...data.patterns].sort(
     (a, b) => Number(b.attempted > 0) - Number(a.attempted > 0) || b.mastery - a.mastery,
   );
+  const [open, setOpen] = useState<string | null>(null);
+  const [detail, setDetail] = useState<PatternDetail | null>(null);
+  const toggle = async (id: string) => {
+    if (open === id) return setOpen(null);
+    setOpen(id);
+    setDetail(null);
+    setDetail(await call("getPatternDetail", id));
+  };
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 lg:grid-cols-3">
@@ -145,37 +197,63 @@ function PatternsTab({
           </TableHeader>
           <TableBody>
             {rows.map((m) => (
-              <TableRow key={m.pattern} title={breakdown(m)} className="even:bg-muted/30">
-                <TableCell>{name(m.pattern)}</TableCell>
-                <TableCell>
-                  <span className={`level text-xs ${LEVEL_TONE[m.level]}`}>
-                    {MASTERY_LABELS[m.level]}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div
-                    className="h-1.5 w-28 overflow-hidden rounded-full bg-muted"
-                    role="img"
-                    aria-label={`Mastery ${pct(m.mastery)}`}
-                  >
+              <Fragment key={m.pattern}>
+                <TableRow title={breakdown(m)} className="even:bg-muted/30">
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-left hover:text-link"
+                      aria-expanded={open === m.pattern}
+                      onClick={() => void toggle(m.pattern)}
+                    >
+                      <ChevronRight
+                        className={`size-3.5 shrink-0 transition-transform ${open === m.pattern ? "rotate-90" : ""}`}
+                        aria-hidden
+                      />
+                      {name(m.pattern)}
+                    </button>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`level text-xs ${LEVEL_TONE[m.level]}`}>
+                      {MASTERY_LABELS[m.level]}
+                    </span>
+                  </TableCell>
+                  <TableCell>
                     <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: pct(m.attempted ? m.mastery : 0) }}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {m.attempted ? pct(m.retention) : "–"}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {m.attempted ? pct(m.coldSolve) : "–"}
-                </TableCell>
-                <TableCell className="tabular-nums">{pct(m.coverage)}</TableCell>
-                <TableCell className="tabular-nums">
-                  {m.attempted}
-                  {m.listTotal ? `/${m.listTotal}` : ""}
-                </TableCell>
-              </TableRow>
+                      className="h-1.5 w-28 overflow-hidden rounded-full bg-muted"
+                      role="img"
+                      aria-label={`Mastery ${pct(m.mastery)}`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: pct(m.attempted ? m.mastery : 0) }}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {m.attempted ? pct(m.retention) : "–"}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {m.attempted ? pct(m.coldSolve) : "–"}
+                  </TableCell>
+                  <TableCell className="tabular-nums">{pct(m.coverage)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {m.attempted}
+                    {m.listTotal ? `/${m.listTotal}` : ""}
+                  </TableCell>
+                </TableRow>
+                {open === m.pattern && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={7} className="whitespace-normal">
+                      {detail ? (
+                        <PatternProblems detail={detail} />
+                      ) : (
+                        <span className="text-muted-foreground">Loading…</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             ))}
           </TableBody>
         </Table>

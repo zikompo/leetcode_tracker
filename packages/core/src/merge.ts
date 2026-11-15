@@ -1,4 +1,4 @@
-import type { Attempt, CustomList, Problem, Settings } from "./types";
+import type { Attempt, CustomList, MockInterview, Problem, Settings } from "./types";
 
 interface Versioned {
   updatedAt: string;
@@ -42,4 +42,15 @@ export function mergeCustomLists(
 
 export function mergeSettings(local: Settings, incoming: Settings): Settings {
   return lww(local, incoming);
+}
+
+/** Mock interviews merge like custom lists: by id, last write wins, deletes are tombstones. */
+export function mergeMocks(
+  local: readonly MockInterview[],
+  incoming: readonly MockInterview[],
+): MockInterview[] {
+  const byId = new Map<string, MockInterview>();
+  for (const m of local) byId.set(m.id, m);
+  for (const m of incoming) byId.set(m.id, lww(byId.get(m.id), m));
+  return [...byId.values()];
 }

@@ -2,7 +2,7 @@
 
 Chrome extension (MV3) and companion site for tracking LeetCode attempts, spaced-repetition reviews, and pattern mastery.
 
-Status: **M0–M6 are done.**
+Status: **M0–M7 are done.** The website runs at https://leettrack-xi.vercel.app.
 
 - **M0 and M1:** the extension logs every attempt.
 - **M2:** spaced repetition (FSRS).
@@ -10,6 +10,19 @@ Status: **M0–M6 are done.**
 - **M4:** accounts, two-way sync, and the website.
 - **M5:** commit Accepted solutions to a GitHub repo.
 - **M6:** interview dates: extra reviews before each one, reviews-only last days, a day-by-day Plan with a pace chart, and the Clue Journal.
+- **M7:**
+  - prep-tracker import;
+  - a mock interview log;
+  - onboarding;
+  - a privacy policy;
+  - a Chrome Web Store listing ([docs/web-store.md](docs/web-store.md)).
+- **Also:**
+  - pattern pages with trends;
+  - a review queue with bulk snooze;
+  - the timebox and twist prompts;
+  - the side panel;
+  - a stable extension ID;
+  - the Vercel deploy.
 
 The extension still works fully offline; an account is optional.
 
@@ -24,9 +37,9 @@ supabase            Database schema (migrations) and its tests (PGlite)
 apps/extension      WXT + React MV3 extension
   adapters/leetcode   The only code that knows LeetCode URLs and payload shapes
   lib/                Background service (IndexedDB), sync, account, AI suggestions, messaging
-  entrypoints/        background, page-world interceptor, content script + panel, popup, options, dashboard
+  entrypoints/        background, page-world interceptor, content script + panel, side panel, popup, options, onboarding, dashboard
   e2e/                Playwright tests against a mock leetcode.com and a fake Supabase
-apps/web            Next.js website: dashboard, problems, patterns, lists, plan, clue journal, settings
+apps/web            Next.js website: dashboard, review queue, problems, patterns, lists, plan, mocks, clues, settings, privacy
 docs                Setup guides
 ```
 

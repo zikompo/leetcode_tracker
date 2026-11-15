@@ -4,6 +4,7 @@ import {
   buildExport,
   mergeAttempts,
   mergeCustomLists,
+  mergeMocks,
   mergeProblems,
   mergeSettings,
   parseExport,
@@ -11,6 +12,7 @@ import {
   resolvePatternIds,
   type Attempt,
   type CustomList,
+  type MockInterview,
   type Problem,
   type Settings,
 } from "@leettrack/core";
@@ -19,6 +21,10 @@ import {
   confidenceGauge,
   countdowns,
   dashboardFrom,
+  fromPrepTracker,
+  isPrepTracker,
+  withTargetDates,
+  patternDetail,
   problemStateFrom,
   queueFrom,
   statsFrom,
@@ -34,7 +40,13 @@ const BUILTIN_PATTERN_IDS: ReadonlySet<string> = new Set(PATTERNS.map((p) => p.i
 /** The data side of the API; complexity suggestions and sync live elsewhere. */
 type DataApi = Omit<
   Api,
-  "getAiStatus" | "analyzeComplexity" | "getSyncStatus" | "syncNow" | "signOut" | `github${string}`
+  | "getAiStatus"
+  | "analyzeComplexity"
+  | "generateTwists"
+  | "getSyncStatus"
+  | "syncNow"
+  | "signOut"
+  | `github${string}`
 >;
 type AsyncApi = {
   [K in keyof DataApi]: (...args: Parameters<DataApi[K]>) => Promise<ReturnType<DataApi[K]>>;
@@ -46,6 +58,7 @@ export interface IncomingData {
   attempts?: readonly Attempt[];
   settings?: Settings;
   customLists?: readonly CustomList[];
+  mocks?: readonly MockInterview[];
 }
 
 /**
@@ -53,11 +66,12 @@ export interface IncomingData {
  * last-write-wins. Shared by JSON import and sync pulls. Returns what changed.
  */
 export async function mergeIntoRepo(repo: Repo, data: IncomingData): Promise<ImportSummary> {
-  const [localAttempts, localProblems, localSettings, localLists] = await Promise.all([
+  const [localAttempts, localProblems, localSettings, localLists, localMocks] = await Promise.all([
     repo.allAttempts(),
     repo.allProblems(),
     repo.getSettings(),
     repo.getCustomLists(),
+    repo.getMocks(),
   ]);
   const localById = new Map(localAttempts.map((a) => [a.id, a]));
   const changedAttempts = mergeAttempts(localAttempts, data.attempts ?? []).filter(
@@ -77,10 +91,18 @@ export async function mergeIntoRepo(repo: Repo, data: IncomingData): Promise<Imp
   if (data.customLists?.length) {
     await repo.putCustomLists(mergeCustomLists(localLists, data.customLists));
   }
+  let mocksMerged = 0;
+  if (data.mocks?.length) {
+    const localMockById = new Map(localMocks.map((m) => [m.id, m]));
+    const merged = mergeMocks(localMocks, data.mocks);
+    mocksMerged = merged.filter((m) => localMockById.get(m.id) !== m).length;
+    if (mocksMerged) await repo.putMocks(merged);
+  }
   return {
     attemptsAdded,
     attemptsUpdated: changedAttempts.length - attemptsAdded,
     problemsMerged: changedProblems.length,
+    mocksMerged,
   };
 }
 
@@ -175,6 +197,27 @@ export function createService(
       return problemState(slug);
     },
 
+    /** Snooze a review `days` days from today (local midnight); the scheduler resumes after it. */
+    async snoozeReview({ slug, days }) {
+      const problem = (await repo.getProblem(slug)) ?? stubProblem(slug);
+      const now = clock();
+      const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days).toISOString();
+      await repo.putProblems([
+        { ...problem, dueOverride: { due, at: nowIso() }, updatedAt: nowIso() },
+      ]);
+      return queueFrom(await snapshot());
+    },
+
+    async setTwists({ slug, twists }) {
+      const problem = (await repo.getProblem(slug)) ?? stubProblem(slug);
+      const clean = [...new Set(twists.map((t) => t.trim()).filter(Boolean))].slice(0, 10);
+      const next: Problem = { ...problem, updatedAt: nowIso() };
+      if (clean.length) next.twists = clean;
+      else delete next.twists;
+      await repo.putProblems([next]);
+      return problemState(slug);
+    },
+
     getSession: (slug) => sessions.get(slug),
     putSession: (session) => sessions.put(session),
     clearSession: (slug) => sessions.remove(slug),
@@ -244,23 +287,52 @@ export function createService(
     getStats: async () => statsFrom(await snapshot()),
     getQueue: async () => queueFrom(await snapshot()),
     getDashboard: async () => dashboardFrom(await snapshot()),
+    getPatternDetail: async (id: string) => patternDetail(await snapshot(), id),
     getCountdowns: async () => countdowns(await snapshot()),
     getGauge: async () => confidenceGauge(await snapshot()),
 
     async exportData() {
-      const [problems, attempts, customLists] = await Promise.all([
+      const [problems, attempts, customLists, mocks] = await Promise.all([
         repo.allProblems(),
         repo.allAttempts(),
         repo.getCustomLists(),
+        repo.getMocks(),
       ]);
       return JSON.stringify(
-        buildExport({ problems, attempts, settings: await settings(), customLists }, clock()),
+        buildExport(
+          { problems, attempts, settings: await settings(), customLists, mocks },
+          clock(),
+        ),
         null,
         2,
       );
     },
 
     async importData(json: string): Promise<ImportSummary> {
+      let raw: unknown;
+      try {
+        raw = JSON.parse(json);
+      } catch {
+        throw new Error("That file isn't valid JSON.");
+      }
+      if (isPrepTracker(raw)) {
+        const t = fromPrepTracker(raw, clock());
+        const current = await settings();
+        const targetDates = withTargetDates(current.targetDates, t.targetDates);
+        const summary = await mergeIntoRepo(repo, {
+          problems: t.problems,
+          attempts: t.attempts,
+          mocks: t.mocks,
+          ...(targetDates ? { settings: { ...current, targetDates, updatedAt: nowIso() } } : {}),
+        });
+        return {
+          ...summary,
+          interviewsAdded: targetDates
+            ? targetDates.length - (current.targetDates?.length ?? 0)
+            : 0,
+          fromTracker: true,
+        };
+      }
       const parsed = parseExport(json);
       if (!parsed.ok) throw new Error(parsed.error);
       return mergeIntoRepo(repo, parsed.data);

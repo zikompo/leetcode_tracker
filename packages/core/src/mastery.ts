@@ -172,3 +172,59 @@ export function masteryInsights(all: readonly PatternMastery[]): MasteryInsights
       .sort((a, b) => b.retention - b.coldSolve - (a.retention - a.coldSolve)),
   };
 }
+
+/** One month of a pattern's history (spec 7.1: trends). */
+export interface TrendPoint {
+  /** YYYY-MM */
+  month: string;
+  /** C_T as it stood at the end of the month (smoothed as in computeMastery); absent before any cold attempt. */
+  coldSolve?: number;
+  /** Median time to find the approach in attempts that month, when any recorded it. */
+  medianApproachSeconds?: number;
+  attempts: number;
+}
+
+/**
+ * How a pattern moved over the last `months` calendar months: cold-solve rate, cumulative to
+ * each month's end, and median time-to-approach within each month.
+ */
+export function patternTrend(
+  attempts: readonly Pick<Attempt, "endedAt" | "isCold" | "outcome" | "secondsToApproach">[],
+  now: Date,
+  months = 6,
+): TrendPoint[] {
+  const C = CONFIG.mastery;
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const sorted = [...attempts].sort((a, b) => a.endedAt.localeCompare(b.endedAt));
+  const points: TrendPoint[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    const upTo = sorted.filter((a) => new Date(a.endedAt) < end);
+    const cold = upTo.filter((a) => a.isCold);
+    const solved = cold.filter((a) => a.outcome === "solved_independently").length;
+    const inMonth = upTo.filter((a) => new Date(a.endedAt) >= start);
+    const approach = inMonth
+      .flatMap((a) => (a.secondsToApproach !== undefined ? [a.secondsToApproach] : []))
+      .sort((a, b) => a - b);
+    const mid = Math.floor(approach.length / 2);
+    const median =
+      approach.length === 0
+        ? undefined
+        : approach.length % 2
+          ? approach[mid]!
+          : (approach[mid - 1]! + approach[mid]!) / 2;
+    points.push({
+      month: key(start),
+      ...(cold.length
+        ? {
+            coldSolve:
+              (solved + C.coldPriorStrength * C.coldPrior) / (cold.length + C.coldPriorStrength),
+          }
+        : {}),
+      ...(median !== undefined ? { medianApproachSeconds: median } : {}),
+      attempts: inMonth.length,
+    });
+  }
+  return points;
+}

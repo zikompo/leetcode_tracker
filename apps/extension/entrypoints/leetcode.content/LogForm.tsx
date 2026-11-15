@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   RATING_LABELS,
   formatDuration,
+  HINT_LADDER,
   solveSeconds,
   suggestHelpLevel,
+  timeboxRung,
   suggestRating,
   validateDraft,
   type AttemptDraft,
@@ -54,6 +56,149 @@ interface Props {
   /** Checkpoints (by `at`) waiting on a complexity suggestion. */
   analyzing: string[];
   onRetryAnalysis(at: string): void;
+  timeboxMinutes: number;
+  onTakeHelp(level: Exclude<HelpLevel, "none">): void;
+  onDismissNudge(): void;
+  onGenerateTwists(): Promise<void>;
+  onSetTwists(twists: string[]): Promise<void>;
+}
+
+const HELP_ORDER: Array<Exclude<HelpLevel, "none">> = [
+  "hint",
+  "approach",
+  "partial_code",
+  "full_solution",
+];
+const higherHelp = (
+  a: Exclude<HelpLevel, "none"> | undefined,
+  b: Exclude<HelpLevel, "none"> | undefined,
+) => (!a ? b : !b ? a : HELP_ORDER.indexOf(a) >= HELP_ORDER.indexOf(b) ? a : b);
+
+/** The timebox ran out: offer one rung of the hint ladder (spec 5.5). */
+function Nudge({
+  rung,
+  minutes,
+  onTake,
+  onDismiss,
+}: {
+  rung: number;
+  minutes: number;
+  onTake(): void;
+  onDismiss(): void;
+}) {
+  const step = HINT_LADDER[rung]!;
+  return (
+    <section className="lt-nudge" role="status" aria-label="Timebox">
+      <p className="lt-nudge-head">
+        {rung === 0 ? `${minutes} minutes in.` : "Still stuck?"} <strong>{step.title}</strong>
+      </p>
+      <p className="lt-hint">{step.body}</p>
+      <div className="lt-nudge-actions">
+        <button type="button" className="lt-btn lt-btn-small" onClick={onTake}>
+          I used this
+        </button>
+        <button type="button" className="lt-btn lt-btn-small lt-btn-ghost" onClick={onDismiss}>
+          Keep going
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** On a review of a problem you know well: a "what if" to answer (spec 5.4). */
+function TwistPrompt({
+  twists,
+  attemptNumber,
+  canGenerate,
+  answer,
+  onAnswer,
+  onGenerate,
+  onSave,
+}: {
+  twists: string[];
+  attemptNumber: number;
+  canGenerate: boolean;
+  answer: string;
+  onAnswer(text: string): void;
+  onGenerate(): Promise<void>;
+  onSave(twists: string[]): Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const asked = useRef(false);
+  useEffect(() => {
+    // Draft some the first time they're needed, if a model is set up.
+    if (twists.length === 0 && canGenerate && !asked.current) {
+      asked.current = true;
+      setDrafting(true);
+      void onGenerate().finally(() => setDrafting(false));
+    }
+  }, [twists.length, canGenerate, onGenerate]);
+  const twist = twists.length ? twists[attemptNumber % twists.length] : undefined;
+
+  return (
+    <section className="lt-twist" aria-label="Twist">
+      <p className="lt-label">Twist: how would your solution change?</p>
+      {twist ? (
+        <>
+          <p className="lt-twist-q">{twist}</p>
+          <textarea
+            className="lt-textarea"
+            rows={2}
+            placeholder="Your answer, in a sentence or two (optional)"
+            aria-label="Twist answer"
+            value={answer}
+            onChange={(e) => onAnswer(e.target.value)}
+          />
+        </>
+      ) : drafting ? (
+        <p className="lt-hint">Drafting twists…</p>
+      ) : (
+        <p className="lt-hint">
+          No twists for this problem yet.{canGenerate ? "" : " Add your own below."}
+        </p>
+      )}
+      {editing ? (
+        <div className="lt-twist-edit">
+          <textarea
+            className="lt-textarea"
+            rows={4}
+            aria-label="Twists, one per line"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="lt-nudge-actions">
+            <button
+              type="button"
+              className="lt-btn lt-btn-small"
+              onClick={() => void onSave(text.split("\n")).then(() => setEditing(false))}
+            >
+              Save twists
+            </button>
+            <button
+              type="button"
+              className="lt-btn lt-btn-small lt-btn-ghost"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="lt-link"
+          onClick={() => {
+            setText(twists.join("\n"));
+            setEditing(true);
+          }}
+        >
+          {twists.length ? "Edit twists" : "Write twists"}
+        </button>
+      )}
+    </section>
+  );
 }
 
 /** Only the parts of a pair that are set, so it can be spread under exactOptionalPropertyTypes. */
@@ -173,6 +318,11 @@ export function LogForm({
   ai,
   analyzing,
   onRetryAnalysis,
+  timeboxMinutes,
+  onTakeHelp,
+  onDismissNudge,
+  onGenerateTwists,
+  onSetTwists,
 }: Props) {
   const isFirst = problem.attempts.length === 0;
   const [draft, setDraft] = useState<AttemptDraft>(() => ({
@@ -192,15 +342,15 @@ export function LogForm({
   const update = (patch: Partial<AttemptDraft>) => setDraft((d) => ({ ...d, ...patch }));
   // After an Accepted the likely answers are filled in; anything the user picks wins.
   const hasAccepted = session.submissions.some((s) => s.status === "Accepted");
+  // Help taken from the timebox nudges counts as help, like opening the Editorial does.
+  const helpSeen = higherHelp(session.helpTaken, suggestHelpLevel(session.viewedSolutionDetected));
   const defaultOutcome: Outcome | undefined = hasAccepted
-    ? session.viewedSolutionDetected
+    ? helpSeen
       ? "solved_with_help"
       : "solved_independently"
     : undefined;
   const outcome = draft.outcome ?? defaultOutcome;
-  const helpLevel =
-    draft.helpLevel ??
-    (outcome === "solved_with_help" ? suggestHelpLevel(session.viewedSolutionDetected) : undefined);
+  const helpLevel = draft.helpLevel ?? (outcome === "solved_with_help" ? helpSeen : undefined);
   const solved = outcome && outcome !== "not_solved";
   // Once solved, suggested patterns are no longer spoilers (spec 4.4): start from them.
   const autoPatterns = hasAccepted
@@ -256,9 +406,8 @@ export function LogForm({
 
   const chooseOutcome = (outcome: Outcome) => {
     const patch: Partial<AttemptDraft> = { outcome };
-    if (outcome === "solved_with_help" && !draft.helpLevel) {
-      const help = suggestHelpLevel(session.viewedSolutionDetected);
-      if (help) patch.helpLevel = help;
+    if (outcome === "solved_with_help" && !draft.helpLevel && helpSeen) {
+      patch.helpLevel = helpSeen;
     }
     update(patch);
   };
@@ -281,6 +430,10 @@ export function LogForm({
     (id) => !patterns.includes(id),
   );
   const quick = hasAccepted && !detailed;
+  const rung = hasAccepted ? -1 : timeboxRung(session.activeSeconds, timeboxMinutes);
+  const nudgeRung = rung > (session.nudgeDismissed ?? -1) ? rung : -1;
+  // Twists are for problems you know well: a full review of a mature card that ends Accepted.
+  const showTwist = hasAccepted && !isFirst && Boolean(problem.card?.quickEligible);
   const leetcodeTags = problem.problem?.leetcodeTopics ?? [];
   const atCheckpoint = stopped && lastCheckpoint?.activeSeconds === session.activeSeconds;
   const accepted = session.submissions.filter((s) => s.status === "Accepted").length;
@@ -339,6 +492,15 @@ export function LogForm({
           </button>
         </div>
       </div>
+
+      {nudgeRung >= 0 && (
+        <Nudge
+          rung={nudgeRung}
+          minutes={timeboxMinutes}
+          onTake={() => onTakeHelp(HINT_LADDER[nudgeRung]!.level)}
+          onDismiss={onDismissNudge}
+        />
+      )}
 
       {checkpoints.length > 0 && (
         <ol className="lt-solutions" aria-label="Solutions">
@@ -402,6 +564,18 @@ export function LogForm({
           Going for a better solution? Keep optimizing and the next Accepted is saved as a second
           checkpoint on the same clock.
         </p>
+      )}
+
+      {showTwist && (
+        <TwistPrompt
+          twists={problem.problem?.twists ?? []}
+          attemptNumber={problem.attempts.length}
+          canGenerate={ai.enabled}
+          answer={draft.twistAnswer ?? ""}
+          onAnswer={(twistAnswer) => update({ twistAnswer })}
+          onGenerate={onGenerateTwists}
+          onSave={onSetTwists}
+        />
       )}
 
       {quick && (

@@ -1,4 +1,4 @@
-import type { CustomList } from "@leettrack/core";
+import type { CustomList, MockInterview } from "@leettrack/core";
 import type { SyncBatch, Remote } from "./remote";
 import type { Repo } from "./repo";
 import { mergeIntoRepo } from "./service";
@@ -34,13 +34,19 @@ export interface SyncResult {
 const CHUNK = 500;
 
 function chunks(batch: SyncBatch): SyncBatch[] {
-  const n = Math.max(batch.attempts.length, batch.problems.length, batch.lists.length);
+  const n = Math.max(
+    batch.attempts.length,
+    batch.problems.length,
+    batch.lists.length,
+    batch.mocks.length,
+  );
   const out: SyncBatch[] = [];
   for (let i = 0; i === 0 || i < n; i += CHUNK) {
     out.push({
       attempts: batch.attempts.slice(i, i + CHUNK),
       problems: batch.problems.slice(i, i + CHUNK),
       lists: batch.lists.slice(i, i + CHUNK),
+      mocks: batch.mocks.slice(i, i + CHUNK),
       ...(i === 0 && batch.settings ? { settings: batch.settings } : {}),
     });
   }
@@ -66,48 +72,56 @@ export function createSync(deps: {
       const synced = { ...state.synced };
       const unsynced = (key: string, x: { updatedAt: string }) => synced[key] !== x.updatedAt;
       try {
-        const [attempts, problems, settings, lists] = await Promise.all([
+        const [attempts, problems, settings, lists, mocks] = await Promise.all([
           deps.repo.allAttempts(),
           deps.repo.allProblems(),
           deps.repo.getSettings(),
           deps.repo.getCustomLists(),
+          deps.repo.getMocks(),
         ]);
         const batch: SyncBatch = {
           attempts: attempts.filter((a) => unsynced(`a:${a.id}`, a)),
           problems: problems.filter((p) => unsynced(`p:${p.slug}`, p)),
           lists: lists.filter((l) => unsynced(`l:${l.id}`, l)),
+          mocks: mocks.filter((m) => unsynced(`m:${m.id}`, m)),
           ...(settings && unsynced("s", settings) ? { settings } : {}),
         };
         const pushed =
           batch.attempts.length +
           batch.problems.length +
           batch.lists.length +
+          batch.mocks.length +
           (batch.settings ? 1 : 0);
         if (pushed > 0) for (const part of chunks(batch)) await deps.remote.push(part);
         // The server now has at least these versions (it keeps whichever is newer).
         batch.attempts.forEach((a) => (synced[`a:${a.id}`] = a.updatedAt));
         batch.problems.forEach((p) => (synced[`p:${p.slug}`] = p.updatedAt));
         batch.lists.forEach((l) => (synced[`l:${l.id}`] = l.updatedAt));
+        batch.mocks.forEach((m) => (synced[`m:${m.id}`] = m.updatedAt));
         if (batch.settings) synced.s = batch.settings.updatedAt;
 
         const pulled = await deps.remote.pull(state.cursor ?? null);
         const settingsBefore = JSON.stringify(await deps.repo.getSettings());
         const listsBefore = JSON.stringify(await deps.repo.getCustomLists());
+        const mocksBefore = JSON.stringify(await deps.repo.getMocks());
         const summary = await mergeIntoRepo(deps.repo, {
           attempts: pulled.attempts,
           problems: pulled.problems,
           customLists: pulled.lists as CustomList[],
+          mocks: pulled.mocks as MockInterview[],
           ...(pulled.settings ? { settings: pulled.settings } : {}),
         });
         const changed =
           summary.attemptsAdded + summary.attemptsUpdated + summary.problemsMerged > 0 ||
           JSON.stringify(await deps.repo.getSettings()) !== settingsBefore ||
-          JSON.stringify(await deps.repo.getCustomLists()) !== listsBefore;
+          JSON.stringify(await deps.repo.getCustomLists()) !== listsBefore ||
+          JSON.stringify(await deps.repo.getMocks()) !== mocksBefore;
 
         // What came down is what the server has; don't send it straight back.
         pulled.attempts.forEach((a) => (synced[`a:${a.id}`] = a.updatedAt));
         pulled.problems.forEach((p) => (synced[`p:${p.slug}`] = p.updatedAt));
         pulled.lists.forEach((l) => (synced[`l:${l.id}`] = l.updatedAt));
+        pulled.mocks.forEach((m) => (synced[`m:${m.id}`] = m.updatedAt));
         if (pulled.settings) synced.s = pulled.settings.updatedAt;
 
         await deps.state.set({

@@ -61,3 +61,50 @@ export function problemRows(snap: Snapshot): ProblemRow[] {
     };
   });
 }
+
+/** One row of the review queue page. */
+export interface ReviewRow {
+  slug: string;
+  title: string;
+  frontendId?: string;
+  difficulty?: Difficulty;
+  /** When it's due, interview extras and snoozes applied. */
+  due: string;
+  isDue: boolean;
+  /** Chance of recalling it now, 0 to 1. */
+  retrievability: number;
+  /** Due date set by hand (snoozed or rescheduled), still in force. */
+  manual: boolean;
+  /** Brought forward for this interview. */
+  forTarget?: string;
+  isLeech: boolean;
+}
+
+/** Reviews due now or within `days` days, soonest first (spec 7.1, page 2). */
+export function upcomingReviews(snap: Snapshot, days = 14): ReviewRow[] {
+  const horizon = new Date(
+    snap.now.getFullYear(),
+    snap.now.getMonth(),
+    snap.now.getDate() + days + 1,
+  );
+  const rows: ReviewRow[] = [];
+  for (const [slug, card] of snap.cards) {
+    const summary = cardSummary(snap, slug);
+    if (!summary || new Date(summary.due) >= horizon) continue;
+    const info = snap.info(slug);
+    const override = snap.problemMap.get(slug)?.dueOverride;
+    rows.push({
+      slug,
+      title: info.title ?? slug,
+      ...(info.frontendId ? { frontendId: info.frontendId } : {}),
+      ...(info.difficulty ? { difficulty: info.difficulty } : {}),
+      due: summary.due,
+      isDue: summary.isDue,
+      retrievability: summary.retrievability,
+      manual: !!override && card.due === override.due,
+      ...(summary.forTarget ? { forTarget: summary.forTarget } : {}),
+      isLeech: summary.isLeech,
+    });
+  }
+  return rows.sort((a, b) => a.due.localeCompare(b.due) || a.retrievability - b.retrievability);
+}

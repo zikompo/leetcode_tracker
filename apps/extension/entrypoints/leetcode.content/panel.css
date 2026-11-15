@@ -946,3 +946,68 @@
   margin: 0;
   font-weight: 500;
 }
+
+/* Timebox nudge (spec 5.5) and twist prompt (spec 5.4) */
+.lt-nudge,
+.lt-twist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.lt-nudge {
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+}
+.lt-nudge-head {
+  margin: 0;
+}
+.lt-nudge-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lt-twist {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.lt-twist-q {
+  margin: 0;
+  font-weight: 600;
+}
+.lt-twist-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Docked in Chrome's side panel: fills it, no float, no shadow. */
+.lt-panel.lt-panel-side {
+  position: static;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.lt-root[data-layout="side"] {
+  height: 100%;
+}
+
+/* With the side panel chosen, the page shows only this after a result. */
+.lt-side-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+}

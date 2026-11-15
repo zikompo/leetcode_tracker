@@ -204,3 +204,15 @@ describe("buildQuickAttempt", () => {
     expect(buildQuickAttempt({ slug: "x", session, rating: 1 }).outcome).toBe("not_solved");
   });
 });
+
+describe("timebox", () => {
+  it("offers one rung of the hint ladder at a time after the timebox", async () => {
+    const { timeboxRung, HINT_LADDER } = await import("../src");
+    expect(timeboxRung(19 * 60, 20)).toBe(-1);
+    expect(timeboxRung(20 * 60, 20)).toBe(0);
+    expect(timeboxRung(24 * 60, 20)).toBe(0);
+    expect(timeboxRung(25 * 60, 20)).toBe(1);
+    expect(timeboxRung(99 * 60, 20)).toBe(HINT_LADDER.length - 1);
+    expect(timeboxRung(99 * 60, 0)).toBe(-1);
+  });
+});

@@ -7,7 +7,7 @@ import {
 } from "react";
 import { browser } from "wxt/browser";
 import { STATUS_LABELS, formatDuration } from "@leettrack/core";
-import type { PageController } from "./controller";
+import type { PanelController } from "./panel-controller";
 import { LogForm } from "./LogForm";
 import { History } from "./History";
 import { QuickReview } from "./QuickReview";
@@ -40,9 +40,48 @@ function usePageTheme(): "light" | "dark" {
   return theme;
 }
 
-export function App({ controller }: { controller: PageController }) {
+/** Follow the system's light/dark setting (the side panel has no page to copy). */
+function useSystemTheme(): "light" | "dark" {
+  const query = "(prefers-color-scheme: light)";
+  const [light, setLight] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setLight(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return light ? "light" : "dark";
+}
+
+/**
+ * Asks the background to open the side panel for this tab. Called straight from a click so
+ * the click still counts as the user's; if Chrome refuses, says how to open it instead.
+ */
+async function openSidePanel(): Promise<boolean> {
+  try {
+    const r = (await browser.runtime.sendMessage({ kind: "leettrack-open-side-panel" })) as
+      { ok: boolean } | undefined;
+    return Boolean(r?.ok);
+  } catch {
+    return false;
+  }
+}
+
+export function App({
+  controller,
+  layout = "floating",
+}: {
+  controller: PanelController;
+  /** "side": docked in Chrome's side panel, always open, full height. */
+  layout?: "floating" | "side";
+}) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const theme = usePageTheme();
+  const pageTheme = usePageTheme();
+  const systemTheme = useSystemTheme();
+  const theme = layout === "side" ? systemTheme : pageTheme;
+  const side = layout === "side";
+  const [sideHelp, setSideHelp] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<"log" | "history">("log");
   const [reviewMode, setReviewMode] = useState<{ key: number; mode: "full" | "quick" }>();
@@ -96,9 +135,48 @@ export function App({ controller }: { controller: PageController }) {
   const notesHidden =
     !!session && (problem?.attempts.length ?? 0) > 0 && notesShownFor !== state.formKey;
 
+  // The log lives in the side panel: on the page, only a nudge to open it after a result.
+  if (!side && state.settings.panelStyle === "side") {
+    if (!state.panelOpen) return null;
+    return (
+      <div className="lt-root" data-theme={theme}>
+        <div className="lt-side-pill" role="status" aria-label="LeetTrack">
+          <span>
+            {state.lastResult ? `${state.lastResult.status}. ` : ""}
+            {sideHelp
+              ? "Click LeetTrack in the toolbar to open the side panel."
+              : "Log it in LeetTrack's side panel."}
+          </span>
+          {!sideHelp && (
+            <button
+              type="button"
+              className="lt-btn lt-btn-small"
+              onClick={() =>
+                void openSidePanel().then((ok) => {
+                  if (ok) controller.setPanelOpen(false);
+                  else setSideHelp(true);
+                })
+              }
+            >
+              Open side panel
+            </button>
+          )}
+          <button
+            type="button"
+            className="lt-icon-btn"
+            aria-label="Dismiss"
+            onClick={() => controller.setPanelOpen(false)}
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="lt-root" data-theme={theme}>
-      {!state.panelOpen && (
+    <div className="lt-root" data-theme={theme} data-layout={layout}>
+      {!side && !state.panelOpen && (
         <button
           className="lt-launcher"
           onClick={() => controller.setPanelOpen(true)}
@@ -116,17 +194,15 @@ export function App({ controller }: { controller: PageController }) {
         </button>
       )}
 
-      {state.panelOpen && (
+      {(side || state.panelOpen) && (
         <section
-          className="lt-panel"
-          style={{ left: pos.x, top: pos.y, width: PANEL_WIDTH }}
+          className={side ? "lt-panel lt-panel-side" : "lt-panel"}
+          {...(side ? {} : { style: { left: pos.x, top: pos.y, width: PANEL_WIDTH } })}
           aria-label="LeetTrack"
         >
           <header
             className="lt-header"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
+            {...(side ? {} : { onPointerDown, onPointerMove, onPointerUp })}
           >
             <div className="lt-title">
               <span className="lt-title-text">
@@ -150,36 +226,38 @@ export function App({ controller }: { controller: PageController }) {
                 )}
               </span>
             </div>
-            <div className="lt-header-actions">
-              <button
-                className="lt-icon-btn"
-                onClick={() => setCollapsed((c) => !c)}
-                aria-label={collapsed ? "Expand panel" : "Collapse panel"}
-                title={collapsed ? "Expand" : "Collapse"}
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                  <path
-                    d={collapsed ? "M4 6l4 4 4-4" : "M4 10l4-4 4 4"}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                className="lt-icon-btn"
-                onClick={() => controller.setPanelOpen(false)}
-                aria-label="Close panel"
-                title="Close"
-              >
-                ×
-              </button>
-            </div>
+            {!side && (
+              <div className="lt-header-actions">
+                <button
+                  className="lt-icon-btn"
+                  onClick={() => setCollapsed((c) => !c)}
+                  aria-label={collapsed ? "Expand panel" : "Collapse panel"}
+                  title={collapsed ? "Expand" : "Collapse"}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      d={collapsed ? "M4 6l4 4 4-4" : "M4 10l4-4 4 4"}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="lt-icon-btn"
+                  onClick={() => controller.setPanelOpen(false)}
+                  aria-label="Close panel"
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </header>
 
-          {!collapsed && (
+          {(side || !collapsed) && (
             <div className="lt-body">
               {state.error && (
                 <div className="lt-alert" role="alert">
@@ -255,6 +333,11 @@ export function App({ controller }: { controller: PageController }) {
                     analyzing={state.analyzing}
                     onRetryAnalysis={(at) => void controller.analyzeCheckpoint(at)}
                     onCreatePattern={(name) => controller.addCustomPattern(name)}
+                    timeboxMinutes={state.settings.timeboxMinutes}
+                    onTakeHelp={(level) => controller.takeHelp(level)}
+                    onDismissNudge={() => controller.dismissNudge()}
+                    onGenerateTwists={() => controller.generateTwists()}
+                    onSetTwists={(twists) => controller.setTwists(twists)}
                   />
                 ) : (
                   <div className="lt-empty">

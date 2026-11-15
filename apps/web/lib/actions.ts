@@ -5,14 +5,18 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   DEFAULT_SETTINGS,
+  mockInterviewSchema,
   parseExport,
   problemSchema,
   settingsSchema,
   type CustomList,
+  type MockInterview,
+  type MockOutcome,
   type Problem,
   type Settings,
   type StatusOverride,
 } from "@leettrack/core";
+import { fromPrepTracker, isPrepTracker, withTargetDates } from "@leettrack/insights";
 import { SEED_BY_SLUG } from "@leettrack/seed";
 import { DEMO } from "./env";
 import { supabaseServer } from "./supabase/server";
@@ -31,6 +35,7 @@ type Push = {
   problems?: unknown[];
   settings?: unknown;
   lists?: unknown[];
+  mocks?: unknown[];
 };
 
 /** Write through the server's newer-wins function, the same path the extension syncs with. */
@@ -41,6 +46,7 @@ async function push(data: Push) {
     p_problems: data.problems ?? [],
     p_settings: data.settings ?? null,
     p_lists: data.lists ?? [],
+    p_mocks: data.mocks ?? [],
   });
   if (error) throw new Error(error.message);
 }
@@ -241,16 +247,46 @@ export async function deleteList(id: string): Promise<ActionResult> {
 
 export async function importJson(json: string): Promise<ActionResult> {
   if (DEMO) return DEMO_RESULT;
-  const parsed = parseExport(json);
-  if (!parsed.ok) return { ok: false, message: parsed.error };
+  let raw: unknown;
   try {
-    const { attempts, problems, settings, customLists } = parsed.data;
+    raw = JSON.parse(json);
+  } catch {
+    return { ok: false, message: "That file isn't valid JSON." };
+  }
+  try {
+    if (isPrepTracker(raw)) {
+      const t = fromPrepTracker(raw);
+      const settings = await currentSettings();
+      const targetDates = withTargetDates(settings.targetDates, t.targetDates);
+      for (let i = 0; i < Math.max(t.attempts.length, 1); i += 500) {
+        await push({
+          attempts: t.attempts.slice(i, i + 500),
+          ...(i === 0
+            ? {
+                problems: t.problems,
+                mocks: t.mocks,
+                ...(targetDates
+                  ? { settings: { ...settings, targetDates, updatedAt: now() } }
+                  : {}),
+              }
+            : {}),
+        });
+      }
+      revalidatePath("/", "layout");
+      return {
+        ok: true,
+        message: `Imported from your prep tracker: ${t.attempts.length} attempts, ${t.mocks.length} mock interviews${targetDates ? " and your interview date" : ""}. Redo dates are estimated from the tracker's schedule.`,
+      };
+    }
+    const parsed = parseExport(json);
+    if (!parsed.ok) return { ok: false, message: parsed.error };
+    const { attempts, problems, settings, customLists, mocks } = parsed.data;
     // Batches keep each request a reasonable size.
     for (let i = 0; i < Math.max(attempts.length, problems.length, 1); i += 500) {
       await push({
         attempts: attempts.slice(i, i + 500),
         problems: problems.slice(i, i + 500),
-        ...(i === 0 ? { settings, lists: customLists ?? [] } : {}),
+        ...(i === 0 ? { settings, lists: customLists ?? [], mocks: mocks ?? [] } : {}),
       });
     }
     revalidatePath("/", "layout");
@@ -258,6 +294,111 @@ export async function importJson(json: string): Promise<ActionResult> {
       ok: true,
       message: `Imported ${attempts.length} attempts and ${problems.length} problems. Anything older than what's here was skipped.`,
     };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Replace a problem's twist prompts (spec 5.4), one per line in the form. */
+export async function setTwists(slug: string, twists: string[]): Promise<ActionResult> {
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const clean = [...new Set(twists.map((t) => t.trim()).filter(Boolean))].slice(0, 10);
+    const problem = await currentProblem(slug);
+    const next: Problem = { ...problem, updatedAt: now() };
+    if (clean.length) next.twists = clean;
+    else delete next.twists;
+    await push({ problems: [next] });
+    revalidatePath(`/problems/${slug}`);
+    return { ok: true, message: clean.length ? "Twists saved." : "Twists cleared." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/**
+ * Snooze or reschedule reviews (spec 7.1, page 2): set a due date by hand for each problem, or
+ * clear it with `due: null`. The browser sends the date as its own local midnight, so "today"
+ * means the user's today. The scheduler takes over again after the next review.
+ */
+export async function scheduleReviews(slugs: string[], due: string | null): Promise<ActionResult> {
+  if (slugs.length === 0) return { ok: false, message: "Pick at least one problem." };
+  if (due !== null && Number.isNaN(Date.parse(due))) return { ok: false, message: "Pick a date." };
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const at = now();
+    const problems = await Promise.all(
+      [...new Set(slugs)].slice(0, 500).map(async (slug) => {
+        const p = await currentProblem(slug);
+        const next: Problem = { ...p, updatedAt: at };
+        if (due) next.dueOverride = { due, at };
+        else delete next.dueOverride;
+        return next;
+      }),
+    );
+    await push({ problems });
+    revalidatePath("/", "layout");
+    const n = problems.length;
+    return {
+      ok: true,
+      message: due
+        ? `Moved ${n} review${n === 1 ? "" : "s"} to ${new Date(due).toLocaleDateString(undefined, { day: "numeric", month: "short" })}.`
+        : `Back on the normal schedule: ${n} review${n === 1 ? "" : "s"}.`,
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+async function currentMock(id: string): Promise<MockInterview | undefined> {
+  const supabase = await supabaseServer();
+  const { data } = await supabase.from("mock_interviews").select("data").eq("id", id).maybeSingle();
+  const parsed = mockInterviewSchema.safeParse(data?.data);
+  return parsed.success ? (parsed.data as MockInterview) : undefined;
+}
+
+/** Log or edit a mock interview (spec 7.1, page 9). */
+export async function saveMock(input: {
+  id?: string;
+  date: string;
+  problem: string;
+  outcome: MockOutcome | "";
+  notes: string;
+}): Promise<ActionResult> {
+  if (!DAY.test(input.date)) return { ok: false, message: "Pick a date." };
+  const notes = input.notes.trim();
+  const problemRef = input.problem.trim();
+  if (!notes && !problemRef) return { ok: false, message: "Add the problem or some notes." };
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const existing = input.id ? await currentMock(input.id) : undefined;
+    const problem = problemRef ? (parseProblemRef(problemRef) ?? problemRef.slice(0, 200)) : "";
+    const mock: MockInterview = {
+      id: existing?.id ?? crypto.randomUUID(),
+      date: input.date,
+      notes: notes.slice(0, 10_000),
+      ...(problem ? { problem } : {}),
+      ...(input.outcome ? { outcome: input.outcome } : {}),
+      updatedAt: now(),
+    };
+    await push({ mocks: [mock] });
+    revalidatePath("/", "layout");
+    return { ok: true, message: existing ? "Saved." : "Mock logged." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function deleteMock(id: string): Promise<ActionResult> {
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const existing = await currentMock(id);
+    if (!existing) return { ok: false, message: "That mock is already gone." };
+    await push({ mocks: [{ ...existing, deleted: true, updatedAt: now() }] });
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Deleted." };
   } catch (err) {
     return fail(err);
   }

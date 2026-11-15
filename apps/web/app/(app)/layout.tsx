@@ -74,7 +74,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           Demo mode: sample data, and nothing you change is saved.
         </div>
       )}
-      <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pt-6 pb-16">{children}</main>
+      <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pt-6 pb-10">{children}</main>
+      <footer className="mx-auto flex max-w-6xl justify-end px-4 pb-8 text-xs text-muted-foreground">
+        <Link href="/privacy">Privacy policy</Link>
+      </footer>
     </>
   );
 }

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AiConfig } from "./config";
 import { createAiService } from "./index";
 import { extractJson, userPrompt, type AnalysisInput } from "./prompt";
-import { analyzeComplexity } from "./providers";
+import { analyzeComplexity, generateTwists } from "./providers";
 
 const input: AnalysisInput = {
   slug: "two-sum",
@@ -168,5 +168,26 @@ describe("createAiService", () => {
       label: "DeepSeek · test-model",
     });
     await expect(on.analyzeComplexity(input)).resolves.toMatchObject({ space: "O(n)" });
+  });
+});
+
+describe("twists", () => {
+  it("sends only the problem's name and returns up to three twists", async () => {
+    const fetchMock = vi.fn(async () =>
+      chat(
+        JSON.stringify({
+          twists: ["What if the input were a stream?", "  ", "What if values repeat?", "a", "b"],
+        }),
+      ),
+    );
+    const twists = await generateTwists(openai, { slug: "two-sum", title: "Two Sum" }, fetchMock);
+    expect(twists).toEqual(["What if the input were a stream?", "What if values repeat?", "a"]);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    ) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(body.messages[1]!.content).toBe("Problem: Two Sum (two-sum)");
+    expect(JSON.stringify(body)).not.toContain("class Solution");
   });
 });

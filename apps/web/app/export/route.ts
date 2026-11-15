@@ -10,6 +10,7 @@ export async function GET() {
     attempts: [...data.attempts],
     settings: data.settings,
     customLists: [...(data.customLists ?? [])],
+    mocks: [...(data.mocks ?? [])],
   });
   return new Response(JSON.stringify(file, null, 2), {
     headers: {

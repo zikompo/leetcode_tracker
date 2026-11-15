@@ -57,3 +57,31 @@ describe("custom lists", () => {
     expect(mergeCustomLists([gone], [a])).toEqual([gone]);
   });
 });
+
+describe("mock interviews", () => {
+  it("merge by id, newest wins, and round-trip through an export", async () => {
+    const { mergeMocks, buildExport, parseExport, DEFAULT_SETTINGS } = await import("../src");
+    const m = {
+      id: "m1",
+      date: "2026-10-10",
+      problem: "two-sum",
+      outcome: "passed" as const,
+      notes: "Fine",
+      updatedAt: "2026-10-10T12:00:00.000Z",
+    };
+    const edited = { ...m, notes: "Fine, but slow", updatedAt: "2026-10-11T12:00:00.000Z" };
+    expect(mergeMocks([edited], [m])).toEqual([edited]);
+    expect(mergeMocks([m], [{ ...edited, deleted: true }])[0]!.deleted).toBe(true);
+
+    const file = buildExport({
+      problems: [],
+      attempts: [],
+      settings: DEFAULT_SETTINGS,
+      mocks: [m],
+    });
+    const parsed = parseExport(JSON.stringify(file));
+    expect(parsed.ok && parsed.data.mocks).toEqual([m]);
+    const bad = { ...file, mocks: [{ ...m, date: "10/10/2026" }] };
+    expect(parseExport(JSON.stringify(bad)).ok).toBe(false);
+  });
+});

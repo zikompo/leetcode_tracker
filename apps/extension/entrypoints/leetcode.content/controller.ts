@@ -4,7 +4,9 @@ import {
   buildQuickAttempt,
   solveSeconds,
   suggestRating,
+  timeboxRung,
   type AttemptDraft,
+  type HelpLevel,
   type Settings,
   type StatusOverride,
   type Submission,
@@ -208,6 +210,61 @@ export class PageController {
     });
     this.ticks += 1;
     if (this.ticks % FLUSH_EVERY_TICKS === 0) void this.flush();
+    this.checkTimebox();
+  }
+
+  /** Past the timebox without an Accepted: open the panel on the next rung of the ladder. */
+  private checkTimebox() {
+    const { session, settings } = this.state;
+    if (!session || session.submissions.some((s) => s.status === "Accepted")) return;
+    const rung = timeboxRung(session.activeSeconds, settings.timeboxMinutes);
+    if (rung < 0 || rung <= (session.nudgeSeen ?? -1)) return;
+    this.updateSession({ nudgeSeen: rung });
+    this.setPanelOpen(true);
+  }
+
+  /** "I used this": remember the rung so the log form pre-selects it as the help taken. */
+  takeHelp(level: Exclude<HelpLevel, "none">) {
+    const { session } = this.state;
+    if (!session) return;
+    const order = ["hint", "approach", "partial_code", "full_solution"];
+    const helpTaken =
+      session.helpTaken && order.indexOf(session.helpTaken) > order.indexOf(level)
+        ? session.helpTaken
+        : level;
+    this.updateSession({ helpTaken, nudgeDismissed: session.nudgeSeen ?? -1 });
+  }
+
+  dismissNudge() {
+    const { session } = this.state;
+    if (session) this.updateSession({ nudgeDismissed: session.nudgeSeen ?? -1 });
+  }
+
+  /** Draft twists with the configured model and keep them on the problem. */
+  async generateTwists() {
+    const { problem, ai } = this.state;
+    if (!problem || !ai.enabled) return;
+    try {
+      const info = problem.problem;
+      const twists = await call("generateTwists", {
+        slug: problem.slug,
+        ...(info?.title ? { title: info.title } : {}),
+        ...(info?.frontendId ? { frontendId: info.frontendId } : {}),
+      });
+      this.set({ problem: await call("setTwists", { slug: problem.slug, twists }) });
+    } catch (err) {
+      this.report(err);
+    }
+  }
+
+  async setTwists(twists: string[]) {
+    const { problem } = this.state;
+    if (!problem) return;
+    try {
+      this.set({ problem: await call("setTwists", { slug: problem.slug, twists }) });
+    } catch (err) {
+      this.report(err);
+    }
   }
 
   private async flush() {

@@ -5,6 +5,7 @@ import { loadPanelFonts } from "@/lib/fonts";
 import type { TabMessage } from "@/lib/types";
 import { App } from "./App";
 import { PageController } from "./controller";
+import { servePanel } from "./panel-controller";
 import "./panel.css";
 
 export default defineContentScript({
@@ -15,7 +16,11 @@ export default defineContentScript({
     ctx.addEventListener(window, "wxt:locationchange", ({ newUrl }) => {
       void controller.onLocationChange(newUrl.href);
     });
-    ctx.onInvalidated(() => controller.stop());
+    const stopServing = servePanel(controller);
+    ctx.onInvalidated(() => {
+      stopServing();
+      controller.stop();
+    });
 
     browser.runtime.onMessage.addListener((message: unknown) => {
       const m = message as Partial<TabMessage> | null;

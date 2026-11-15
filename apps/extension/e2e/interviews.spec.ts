@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test } from "./fixtures";
 
 const localDate = (offsetDays: number) => {
@@ -62,4 +63,71 @@ test("the extension's pages and the log panel use Geist", async ({ context, exte
   }));
   expect(panelFont.family).toMatch(/^"?LeetTrack Geist/);
   expect(panelFont.loaded).toBe(true);
+});
+
+test("a prep-tracker export imports attempts, mocks and the interview date", async ({
+  context,
+  extensionId,
+}, testInfo) => {
+  const file = testInfo.outputPath("prep-tracker.json");
+  writeFileSync(
+    file,
+    JSON.stringify({
+      v: 1,
+      interview: localDate(30),
+      interview2: localDate(30),
+      updatedAt: Date.now(),
+      log: {},
+      probs: {
+        "binary-search": { status: "solved", countedOn: localDate(-10), redo: null },
+        "3sum": { status: "help", countedOn: localDate(-12), redo: null, clean: true },
+      },
+      mocks: [{ id: "m1", date: localDate(-5), notes: "Two pointers, slow" }],
+    }),
+  );
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.locator('input[type="file"]').setInputFiles(file);
+  await expect(
+    options.getByText(
+      "Imported from your prep tracker: 4 attempts, 1 mock interview, 1 interview date.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await expect(options.getByRole("region", { name: "Interview dates" })).toContainText(
+    "in 30 days",
+  );
+  // Importing again changes nothing.
+  await options.locator('input[type="file"]').setInputFiles(file);
+  await expect(options.getByText("Imported from your prep tracker: 0 attempts")).toBeVisible();
+});
+
+test("first install opens onboarding, and its choices are saved", async ({
+  context,
+  extensionId,
+}) => {
+  const url = `chrome-extension://${extensionId}/onboarding.html`;
+  await expect
+    .poll(() => context.pages().some((p) => p.url() === url), { timeout: 10_000 })
+    .toBe(true);
+  const page = await context.newPage();
+  await page.goto(url);
+  await expect(page.getByText("Step 1 of 5")).toBeVisible();
+  await page.getByLabel("Blind 75").check();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("region", { name: "Interview dates" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip" }).click();
+  await page.getByRole("radio", { name: /In Chrome's side panel/ }).click();
+  await expect(page.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("button", { name: "Import JSON" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip" }).click();
+  await expect(page.getByRole("button", { name: "Start solving" })).toBeVisible();
+
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(
+    options.getByRole("region", { name: "Daily review" }).getByLabel("Blind 75"),
+  ).toBeChecked();
+  await expect(options.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
 });

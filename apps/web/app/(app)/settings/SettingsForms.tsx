@@ -31,6 +31,7 @@ export function SettingsForms({ settings }: { settings: Settings }) {
     dailyReviewLimit: settings.dailyReviewLimit,
     desiredRetention: settings.desiredRetention,
     hideTopicsWhileSolving: settings.hideTopicsWhileSolving,
+    timeboxMinutes: settings.timeboxMinutes,
   });
   const [confirm, setConfirm] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,7 +39,7 @@ export function SettingsForms({ settings }: { settings: Settings }) {
   return (
     <>
       <Panel title="Daily review">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <Field label="New problems per day" htmlFor="s-new">
             <Input
               id="s-new"
@@ -57,6 +58,16 @@ export function SettingsForms({ settings }: { settings: Settings }) {
               max={500}
               value={form.dailyReviewLimit}
               onChange={(e) => setForm({ ...form, dailyReviewLimit: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Timebox (min, 0 = off)" htmlFor="s-timebox">
+            <Input
+              id="s-timebox"
+              type="number"
+              min={0}
+              max={180}
+              value={form.timeboxMinutes}
+              onChange={(e) => setForm({ ...form, timeboxMinutes: Number(e.target.value) })}
             />
           </Field>
           <Field label="Target recall" htmlFor="s-recall">
@@ -95,7 +106,7 @@ export function SettingsForms({ settings }: { settings: Settings }) {
       <div className="grid items-start gap-4 md:grid-cols-2">
         <Panel
           title="Your data"
-          description="Download everything as JSON, or import a file exported from the extension. Importing merges: nothing is deleted, and newer edits win."
+          description="Download everything as JSON, or import a file exported from the extension, or a prep-tracker export. Importing merges: nothing is deleted, and newer edits win."
         >
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" asChild>

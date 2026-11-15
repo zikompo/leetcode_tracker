@@ -7,3 +7,5 @@ export * from "./patterns";
 export * from "./targets";
 export * from "./clues";
 export * from "./gauge";
+export * from "./pattern-detail";
+export * from "./import-tracker";

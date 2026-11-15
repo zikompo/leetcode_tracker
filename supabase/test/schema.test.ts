@@ -5,7 +5,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const migration = readFileSync(path.resolve(here, "../migrations/0001_init.sql"), "utf8");
+const migrations = ["0001_init.sql", "0002_mocks.sql"].map((f) =>
+  readFileSync(path.resolve(here, "../migrations", f), "utf8"),
+);
 
 const ALICE = "00000000-0000-0000-0000-00000000000a";
 const BOB = "00000000-0000-0000-0000-00000000000b";
@@ -61,7 +63,7 @@ const push = (
 beforeEach(async () => {
   db = await PGlite.create();
   await db.exec(SUPABASE_STUB);
-  await db.exec(migration);
+  for (const m of migrations) await db.exec(m);
 });
 
 describe("sync_push", () => {
@@ -72,7 +74,7 @@ describe("sync_push", () => {
       settings: { panelAutoOpen: "accepted", updatedAt: "2026-01-01T00:00:00Z" },
       lists: [{ id: "l1", name: "Mine", slugs: [], updatedAt: "2026-01-01T00:00:00Z" }],
     });
-    expect(r).toEqual({ attempts: 1, problems: 1, settings: 1, lists: 1 });
+    expect(r).toEqual({ attempts: 1, problems: 1, settings: 1, lists: 1, mocks: 0 });
     const rows = await as<{ user_id: string; problem_slug: string }>(
       ALICE,
       "select user_id, problem_slug from public.attempts",
@@ -110,6 +112,40 @@ describe("sync_push", () => {
 
   it("refuses callers who aren't signed in", async () => {
     await expect(as(null, "select public.sync_push()")).rejects.toThrow();
+  });
+});
+
+describe("mock interviews", () => {
+  const mock = (id: string, updatedAt: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    date: "2026-10-10",
+    notes: "two pointers",
+    updatedAt,
+    ...extra,
+  });
+  const pushMocks = (user: string, mocks: unknown[]) =>
+    as<{ r: Record<string, number> }>(user, "select public.sync_push(p_mocks => $1::jsonb) as r", [
+      JSON.stringify(mocks),
+    ]).then((rows) => rows[0]!.r);
+
+  it("sync newest-wins with tombstones, and stay private", async () => {
+    expect(await pushMocks(ALICE, [mock("m1", "2026-10-10T12:00:00Z")])).toMatchObject({
+      mocks: 1,
+    });
+    expect(await pushMocks(ALICE, [mock("m1", "2026-10-09T12:00:00Z")])).toMatchObject({
+      mocks: 0,
+    });
+    await pushMocks(ALICE, [mock("m1", "2026-10-11T12:00:00Z", { deleted: true })]);
+    const rows = await as<{ deleted: boolean }>(
+      ALICE,
+      "select deleted from public.mock_interviews",
+    );
+    expect(rows).toEqual([{ deleted: true }]);
+    expect(await as(BOB, "select * from public.mock_interviews")).toEqual([]);
+  });
+
+  it("leaves older four-argument callers working", async () => {
+    expect(await push(ALICE, { lists: [] })).toMatchObject({ lists: 0, mocks: 0 });
   });
 });
 

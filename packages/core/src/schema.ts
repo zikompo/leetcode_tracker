@@ -53,6 +53,8 @@ export const problemSchema = z.object({
   statusOverride: z
     .object({ status: problemStatusSchema, optimality: optimalitySchema.optional(), at: isoDate })
     .optional(),
+  // Added in M7.
+  dueOverride: z.object({ due: isoDate, at: isoDate }).optional(),
   updatedAt: isoDate,
 });
 

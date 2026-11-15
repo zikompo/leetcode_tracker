@@ -173,6 +173,11 @@ export default async function DashboardPage() {
         <Panel
           className={cn("max-lg:order-1 md:col-span-2", heavyToday && "lg:row-span-4")}
           title="Today"
+          action={
+            <Link href="/review" className="text-xs">
+              Review queue →
+            </Link>
+          }
         >
           {reviews.length === 0 && fresh.length === 0 ? (
             <p className="text-muted-foreground">

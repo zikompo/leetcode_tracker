@@ -1,12 +1,18 @@
 import { StrictMode, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { browser } from "wxt/browser";
-import { ExternalLink, LayoutDashboard, Settings } from "lucide-react";
+import { AlarmClock, ExternalLink, LayoutDashboard, Settings } from "lucide-react";
 import { STATUS_LABELS, formatDuration, type Queue, type QueueItem } from "@leettrack/core";
 import type { ConfidenceGauge as GaugeData, Countdown } from "@leettrack/insights";
 import { Badge } from "@leettrack/ui/components/badge";
 import { Button } from "@leettrack/ui/components/button";
 import { ConfidenceGauge } from "@leettrack/ui/components/confidence-gauge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@leettrack/ui/components/dropdown-menu";
 import { Difficulty, Stat } from "@leettrack/ui/components/panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@leettrack/ui/components/tabs";
 import { parseProblemUrl, problemUrl } from "@/adapters/leetcode";
@@ -25,7 +31,7 @@ type Tab = "today" | "problem" | "stats";
 const openDashboard = () =>
   void browser.tabs.create({ url: browser.runtime.getURL("/dashboard.html") });
 
-function QueueRow({ item }: { item: QueueItem }) {
+function QueueRow({ item, onSnooze }: { item: QueueItem; onSnooze?(days: number): void }) {
   const marker =
     item.kind === "new"
       ? "new"
@@ -33,9 +39,9 @@ function QueueRow({ item }: { item: QueueItem }) {
         ? `overdue ${item.overdueDays}d`
         : "due today";
   return (
-    <li>
+    <li className="flex items-start gap-1">
       <button
-        className="queue-row flex w-full flex-col gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+        className="queue-row flex min-w-0 flex-1 flex-col gap-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
         onClick={() => void browser.tabs.create({ url: problemUrl(item.slug) })}
         title={item.kind === "review" && item.due ? `Due ${formatDue(item.due)}` : undefined}
       >
@@ -68,6 +74,25 @@ function QueueRow({ item }: { item: QueueItem }) {
           )}
         </span>
       </button>
+      {onSnooze && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="mt-1 shrink-0"
+              aria-label={`Snooze ${item.title ?? item.slug}`}
+              title="Snooze"
+            >
+              <AlarmClock />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onSnooze(1)}>Snooze until tomorrow</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSnooze(3)}>Snooze 3 days</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </li>
   );
 }
@@ -92,7 +117,15 @@ function Section({
   );
 }
 
-function Today({ queue, gauge }: { queue: Queue | null; gauge: GaugeData | null }) {
+function Today({
+  queue,
+  gauge,
+  onQueue,
+}: {
+  queue: Queue | null;
+  gauge: GaugeData | null;
+  onQueue(q: Queue): void;
+}) {
   if (!queue) return <p className="text-muted-foreground">Loading…</p>;
   const reviews = queue.items.filter((i) => i.kind === "review");
   const fresh = queue.items.filter((i) => i.kind === "new");
@@ -112,7 +145,11 @@ function Today({ queue, gauge }: { queue: Queue | null; gauge: GaugeData | null 
         ) : (
           <ol className="flex flex-col">
             {reviews.map((i) => (
-              <QueueRow key={i.slug} item={i} />
+              <QueueRow
+                key={i.slug}
+                item={i}
+                onSnooze={(days) => void call("snoozeReview", { slug: i.slug, days }).then(onQueue)}
+              />
             ))}
           </ol>
         )}
@@ -257,7 +294,7 @@ function Popup() {
         </TabsList>
 
         <TabsContent value="today">
-          <Today queue={queue} gauge={gauge} />
+          <Today queue={queue} gauge={gauge} onQueue={setQueue} />
         </TabsContent>
 
         {problem && (

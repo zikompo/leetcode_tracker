@@ -191,6 +191,17 @@ export function createService(
       return problemState(slug);
     },
 
+    /** Snooze a review `days` days from today (local midnight); the scheduler resumes after it. */
+    async snoozeReview({ slug, days }) {
+      const problem = (await repo.getProblem(slug)) ?? stubProblem(slug);
+      const now = clock();
+      const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days).toISOString();
+      await repo.putProblems([
+        { ...problem, dueOverride: { due, at: nowIso() }, updatedAt: nowIso() },
+      ]);
+      return queueFrom(await snapshot());
+    },
+
     getSession: (slug) => sessions.get(slug),
     putSession: (session) => sessions.put(session),
     clearSession: (slug) => sessions.remove(slug),

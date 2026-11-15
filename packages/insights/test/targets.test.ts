@@ -7,6 +7,7 @@ import {
   confidenceGauge,
   countdowns,
   patternDetail,
+  upcomingReviews,
   queueFrom,
   targetsFrom,
 } from "../src";
@@ -239,5 +240,46 @@ describe("patternDetail", () => {
     });
     expect(patternDetail(snap, "heap").attempted).toEqual([]);
     expect(patternDetail(snap, "heap").unstarted.map((p) => p.slug)).toEqual(["b", "d"]);
+  });
+});
+
+describe("manual due dates", () => {
+  const attempts = [
+    attempt("x", new Date(2026, 9, 20, 12)),
+    attempt("x", new Date(2026, 9, 24, 12)),
+  ];
+  const xProblem = (dueOverride?: Problem["dueOverride"]) => ({
+    ...problem("x", []),
+    ...(dueOverride ? { dueOverride } : {}),
+  });
+
+  it("a snooze moves a due review out of today until the next review", () => {
+    const plain = snapshot({}, attempts, [xProblem()]);
+    expect(upcomingReviews(plain).map((r) => [r.slug, r.manual])).toEqual([["x", false]]);
+    // Due 18 Nov; snoozed to 25 Nov on the 14th.
+    const snoozed = snapshot({}, attempts, [
+      xProblem({
+        due: new Date(2026, 10, 25).toISOString(),
+        at: new Date(2026, 10, 14).toISOString(),
+      }),
+    ]);
+    expect(snoozed.cards.get("x")!.due).toBe(new Date(2026, 10, 25).toISOString());
+    expect(upcomingReviews(snoozed)[0]).toMatchObject({ manual: true, isDue: false });
+    // Brought forward to today instead: due now.
+    const today = snapshot({}, attempts, [
+      xProblem({
+        due: new Date(2026, 10, 14).toISOString(),
+        at: new Date(2026, 10, 14).toISOString(),
+      }),
+    ]);
+    expect(queueFrom(today).items.map((i) => i.slug)).toEqual(["x"]);
+  });
+
+  it("stops applying once the problem is reviewed after it was set", () => {
+    const set = new Date(2026, 9, 22).toISOString(); // before the review on the 24th
+    const snap = snapshot({}, attempts, [
+      xProblem({ due: new Date(2026, 11, 30).toISOString(), at: set }),
+    ]);
+    expect(snap.cards.get("x")!.due).not.toBe(new Date(2026, 11, 30).toISOString());
   });
 });

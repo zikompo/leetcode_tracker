@@ -299,6 +299,40 @@ export async function importJson(json: string): Promise<ActionResult> {
   }
 }
 
+/**
+ * Snooze or reschedule reviews (spec 7.1, page 2): set a due date by hand for each problem, or
+ * clear it with `due: null`. The browser sends the date as its own local midnight, so "today"
+ * means the user's today. The scheduler takes over again after the next review.
+ */
+export async function scheduleReviews(slugs: string[], due: string | null): Promise<ActionResult> {
+  if (slugs.length === 0) return { ok: false, message: "Pick at least one problem." };
+  if (due !== null && Number.isNaN(Date.parse(due))) return { ok: false, message: "Pick a date." };
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const at = now();
+    const problems = await Promise.all(
+      [...new Set(slugs)].slice(0, 500).map(async (slug) => {
+        const p = await currentProblem(slug);
+        const next: Problem = { ...p, updatedAt: at };
+        if (due) next.dueOverride = { due, at };
+        else delete next.dueOverride;
+        return next;
+      }),
+    );
+    await push({ problems });
+    revalidatePath("/", "layout");
+    const n = problems.length;
+    return {
+      ok: true,
+      message: due
+        ? `Moved ${n} review${n === 1 ? "" : "s"} to ${new Date(due).toLocaleDateString(undefined, { day: "numeric", month: "short" })}.`
+        : `Back on the normal schedule: ${n} review${n === 1 ? "" : "s"}.`,
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 async function currentMock(id: string): Promise<MockInterview | undefined> {

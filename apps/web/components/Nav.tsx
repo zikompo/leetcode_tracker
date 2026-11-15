@@ -6,6 +6,7 @@ import { cn } from "@leettrack/ui/lib/utils";
 
 const LINKS: Array<[string, string]> = [
   ["/dashboard", "Dashboard"],
+  ["/review", "Review"],
   ["/problems", "Problems"],
   ["/patterns", "Patterns"],
   ["/lists", "Lists"],

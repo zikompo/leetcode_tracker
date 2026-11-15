@@ -27,6 +27,11 @@ export interface Problem {
   lists: string[];
   twists?: string[];
   statusOverride?: StatusOverride;
+  /**
+   * A due date set by hand (snooze or reschedule). It replaces the scheduler's date until the
+   * next review after it was set; then the scheduler takes over again.
+   */
+  dueOverride?: { due: string; at: string };
   updatedAt: string;
 }
 

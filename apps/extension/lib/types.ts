@@ -65,6 +65,8 @@ export interface Api {
   getProblemState(slug: string): ProblemState;
   upsertProblemMeta(meta: ProblemMetadata): ProblemState;
   saveAttempt(input: { attempt: Attempt; patterns: string[] }): ProblemState;
+  /** Push a review back `days` days; returns the updated queue. */
+  snoozeReview(input: { slug: string; days: number }): Queue;
   setStatusOverride(input: { slug: string; override: StatusOverride | null }): ProblemState;
   getSession(slug: string): AttemptSession | null;
   putSession(session: AttemptSession): void;

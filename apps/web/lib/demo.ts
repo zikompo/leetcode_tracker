@@ -175,6 +175,15 @@ export function demoData(now: Date = new Date()): DataSet {
       patterns: seed.suggestedPatterns.slice(0, 1),
       suggestedPatterns: seed.suggestedPatterns,
       lists: seed.lists,
+      // One review moved by hand, so the review queue shows what that looks like.
+      ...(idx === 2
+        ? {
+            dueOverride: {
+              due: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3).toISOString(),
+              at: now.toISOString(),
+            },
+          }
+        : {}),
       updatedAt,
     });
   });

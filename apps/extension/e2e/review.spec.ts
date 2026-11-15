@@ -111,6 +111,12 @@ test("due reviews drive the badge and the popup's Today list, most overdue first
   const fresh = popup.getByRole("region", { name: "New problems" }).locator(".queue-row");
   await expect(fresh).toHaveCount(3);
   await expect(fresh.nth(0)).not.toContainText("Contains Duplicate");
+
+  // Snoozing a review takes it off today's list.
+  await popup.getByRole("button", { name: "Snooze Contains Duplicate" }).click();
+  await popup.getByRole("menuitem", { name: "Snooze until tomorrow" }).click();
+  await expect(reviews).toHaveCount(1);
+  await expect(reviews.nth(0)).toContainText("1. Two Sum");
 });
 
 test("a quick review recalls, reveals, rates, and reschedules", async ({

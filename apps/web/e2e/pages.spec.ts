@@ -257,6 +257,20 @@ test("mocks: history with outcomes, and a form to log one", async ({ page }) => 
   await expectNoPageOverflow(page);
 });
 
+test("review queue: select reviews and snooze or move them", async ({ page }) => {
+  await page.goto("/review");
+  const rows = page.locator("tbody tr");
+  await expect(rows).not.toHaveCount(0);
+  await expect(page.locator("tbody").getByText("moved")).toBeVisible();
+  const toolbar = page.getByRole("toolbar", { name: "Change selected reviews" });
+  await expect(toolbar.getByRole("button", { name: "3 days" })).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Select all reviews" }).click();
+  await expect(toolbar).toContainText(`${await rows.count()} selected`);
+  await toolbar.getByRole("button", { name: "3 days" }).click();
+  await expect(page.getByText("Demo mode: changes aren't saved.")).toBeVisible();
+  await expectNoPageOverflow(page);
+});
+
 test("connecting the extension isn't offered in the demo", async ({ page }) => {
   await page.goto("/connect-extension?ext=abcdefghijklmnopabcdefghijklmnop");
   await expect(page.getByText("The demo has no accounts")).toBeVisible();

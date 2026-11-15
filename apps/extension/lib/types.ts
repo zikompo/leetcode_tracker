@@ -1,4 +1,5 @@
 import type {
+  HelpLevel,
   Attempt,
   Checkpoint,
   CustomList,
@@ -17,7 +18,7 @@ import type {
 } from "@leettrack/insights";
 import type { ProblemMetadata } from "../adapters/leetcode";
 import type { SyncStatus } from "./account";
-import type { AiStatus, AnalysisInput, ComplexitySuggestion } from "./ai";
+import type { AiStatus, AnalysisInput, ComplexitySuggestion, TwistInput } from "./ai";
 import type { RepoChoice } from "./github/api";
 import type { GitHubStatus } from "./github/service";
 
@@ -37,6 +38,11 @@ export interface AttemptSession extends SessionObservation {
   /** Submission ids already recorded, to dedupe repeated events. */
   submissionIds: string[];
   checkpoints?: SessionCheckpoint[];
+  /** The highest rung of the hint ladder taken during the timebox nudges (spec 5.5). */
+  helpTaken?: Exclude<HelpLevel, "none">;
+  /** The latest rung the panel has offered, and the latest one dismissed. */
+  nudgeSeen?: number;
+  nudgeDismissed?: number;
 }
 
 export type {
@@ -97,6 +103,10 @@ export interface Api {
   getAiStatus(): AiStatus;
   /** Ask the configured model for a complexity estimate. Sends the code to that provider. */
   analyzeComplexity(input: AnalysisInput): ComplexitySuggestion;
+  /** Ask the configured model for "what if" twists. Sends only the problem's name. */
+  generateTwists(input: TwistInput): string[];
+  /** Replace a problem's twists (yours or drafted). Synced with the problem. */
+  setTwists(input: { slug: string; twists: string[] }): ProblemState;
   /** Account and sync state, for the popup and settings. */
   getSyncStatus(): SyncStatus;
   syncNow(): SyncStatus;

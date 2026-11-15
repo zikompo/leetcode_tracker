@@ -1,10 +1,12 @@
 import { loadAiConfig, presetById, type AiConfig } from "./config";
 import type { AnalysisInput, ComplexitySuggestion } from "./prompt";
-import { analyzeComplexity } from "./providers";
+import { analyzeComplexity, generateTwists } from "./providers";
+import type { TwistInput } from "./twists";
 
 export * from "./config";
 export * from "./prompt";
-export { analyzeComplexity } from "./providers";
+export * from "./twists";
+export { analyzeComplexity, generateTwists } from "./providers";
 
 export interface AiStatus {
   enabled: boolean;
@@ -28,6 +30,11 @@ export function createAiService(
       const config = await load();
       if (!config) throw new Error("Complexity suggestions are turned off.");
       return analyzeComplexity(config, input, fetchImpl);
+    },
+    async generateTwists(input: TwistInput): Promise<string[]> {
+      const config = await load();
+      if (!config) throw new Error("AI suggestions are turned off.");
+      return generateTwists(config, input, fetchImpl);
     },
   };
 }

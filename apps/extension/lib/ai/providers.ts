@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AiConfig } from "./config";
+import type { z } from "zod";
 import {
   ANALYSIS_JSON_SCHEMA,
   MAX_CODE_CHARS,
@@ -11,16 +12,31 @@ import {
   type AnalysisInput,
   type ComplexitySuggestion,
 } from "./prompt";
+import {
+  TWISTS_JSON_SCHEMA,
+  TWISTS_SYSTEM_PROMPT,
+  twistsPrompt,
+  twistsSchema,
+  type TwistInput,
+} from "./twists";
+
+/** One request: a system prompt, a user message, and the JSON shape the reply must have. */
+interface JsonRequest<S extends z.ZodType> {
+  system: string;
+  user: string;
+  jsonSchema: { [key: string]: unknown };
+  schema: S;
+}
 
 type FetchLike = typeof fetch;
 const TIMEOUT_MS = 60_000;
 
 /** Claude via the official SDK, with a JSON schema so the reply always parses. */
-async function analyzeWithAnthropic(
+async function askAnthropic<S extends z.ZodType>(
   config: AiConfig,
-  input: AnalysisInput,
+  req: JsonRequest<S>,
   fetchImpl?: FetchLike,
-): Promise<ComplexitySuggestion> {
+): Promise<z.infer<S>> {
   const client = new Anthropic({
     apiKey: config.apiKey,
     baseURL: config.baseUrl,
@@ -36,17 +52,16 @@ async function analyzeWithAnthropic(
     const response = await client.messages.create({
       model: config.model,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt(input) }],
-      output_config: { format: { type: "json_schema", schema: ANALYSIS_JSON_SCHEMA } },
+      system: req.system,
+      messages: [{ role: "user", content: req.user }],
+      output_config: { format: { type: "json_schema", schema: req.jsonSchema } },
     });
-    if (response.stop_reason === "refusal")
-      throw new Error("The model declined to analyse this code.");
+    if (response.stop_reason === "refusal") throw new Error("The model declined the request.");
     if (response.stop_reason === "max_tokens") throw new Error("The model's reply was cut off.");
     const text = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
-    const parsed = analysisSchema.safeParse(extractJson(text));
+    const parsed = req.schema.safeParse(extractJson(text));
     if (!parsed.success) throw new Error("The model's reply didn't match the expected format.");
-    return toSuggestion(parsed.data, config.model);
+    return parsed.data;
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError) throw new Error("The API key was rejected.");
     if (err instanceof Anthropic.PermissionDeniedError)
@@ -81,18 +96,18 @@ function httpError(status: number, body: string): Error {
 }
 
 /** Any OpenAI-compatible chat endpoint (DeepSeek, Qwen, GLM, Kimi, local servers…). */
-async function analyzeWithOpenAICompatible(
+async function askOpenAICompatible<S extends z.ZodType>(
   config: AiConfig,
-  input: AnalysisInput,
+  req: JsonRequest<S>,
   fetchImpl: FetchLike = fetch,
-): Promise<ComplexitySuggestion> {
+): Promise<z.infer<S>> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   const base = {
     model: config.model,
     max_tokens: 8192,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt(input) },
+      { role: "system", content: req.system },
+      { role: "user", content: req.user },
     ],
   };
   const post = async (body: object) => {
@@ -134,10 +149,15 @@ async function analyzeWithOpenAICompatible(
         : "The model sent an empty reply.",
     );
   }
-  const parsed = analysisSchema.safeParse(extractJson(content));
+  const parsed = req.schema.safeParse(extractJson(content));
   if (!parsed.success) throw new Error("The model's reply didn't match the expected format.");
-  return toSuggestion(parsed.data, config.model);
+  return parsed.data;
 }
+
+const ask = <S extends z.ZodType>(config: AiConfig, req: JsonRequest<S>, fetchImpl?: FetchLike) =>
+  config.kind === "anthropic"
+    ? askAnthropic(config, req, fetchImpl)
+    : askOpenAICompatible(config, req, fetchImpl);
 
 /** Estimate the complexity of one solution with the configured provider. */
 export async function analyzeComplexity(
@@ -151,7 +171,40 @@ export async function analyzeComplexity(
       `The solution is over ${MAX_CODE_CHARS.toLocaleString()} characters; not sent.`,
     );
   }
-  return config.kind === "anthropic"
-    ? analyzeWithAnthropic(config, input, fetchImpl)
-    : analyzeWithOpenAICompatible(config, input, fetchImpl);
+  const raw = await ask(
+    config,
+    {
+      system: SYSTEM_PROMPT,
+      user: userPrompt(input),
+      jsonSchema: ANALYSIS_JSON_SCHEMA,
+      schema: analysisSchema,
+    },
+    fetchImpl,
+  );
+  return toSuggestion(raw, config.model);
+}
+
+/**
+ * Draft "what if" twists for a problem (spec 5.4). Only the problem's name goes out, never your
+ * code, since the twists are about the problem, not your solution.
+ */
+export async function generateTwists(
+  config: AiConfig,
+  input: TwistInput,
+  fetchImpl?: FetchLike,
+): Promise<string[]> {
+  const raw = await ask(
+    config,
+    {
+      system: TWISTS_SYSTEM_PROMPT,
+      user: twistsPrompt(input),
+      jsonSchema: TWISTS_JSON_SCHEMA,
+      schema: twistsSchema,
+    },
+    fetchImpl,
+  );
+  return raw.twists
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }

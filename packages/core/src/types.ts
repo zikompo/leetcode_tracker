@@ -154,6 +154,8 @@ export interface AttemptDraft {
   code?: string;
   /** Only meaningful on a first attempt: user has seen this problem before (not cold). */
   seenBefore?: boolean;
+  /** Answer to the twist prompt on a mature review (spec 5.4). */
+  twistAnswer?: string;
 }
 
 /** A user-made problem list (spec 12.1). Deleted lists stay as tombstones so deletes sync. */
@@ -227,6 +229,8 @@ export interface Settings {
    * exactly when recall drops to that, so the same bar would almost never call for an extra.
    */
   targetRetention: number;
+  /** Minutes before the panel nudges one rung up the hint ladder (spec 5.5); 0 turns it off. */
+  timeboxMinutes: number;
   updatedAt: string;
 }
 
@@ -240,5 +244,6 @@ export const DEFAULT_SETTINGS: Settings = {
   targetBufferDays: 2,
   targetNoNewDays: 2,
   targetRetention: 0.95,
+  timeboxMinutes: 20,
   updatedAt: new Date(0).toISOString(),
 };

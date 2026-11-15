@@ -18,6 +18,7 @@ import { loadSnapshot } from "@/lib/data";
 import { formatDate, formatDue, leetcodeUrl, pct } from "@/lib/util";
 import { CodeDiff } from "./CodeDiff";
 import { OverrideForm } from "./OverrideForm";
+import { TwistsForm } from "./TwistsForm";
 
 const OUTCOME: Record<Attempt["outcome"], string> = {
   solved_independently: "Solved alone",
@@ -92,7 +93,7 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
         </Button>
       </div>
 
-      <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Panel title="Review">
           {card ? (
             <div className="flex flex-col gap-1">
@@ -141,6 +142,9 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
               In {lists.map((l) => l.name).join(", ")}
             </p>
           )}
+        </Panel>
+        <Panel title="Twists" description="How would your solution change if…?">
+          <TwistsForm slug={slug} twists={snap.problemMap.get(slug)?.twists ?? []} />
         </Panel>
         <Panel title="Manual status">
           <OverrideForm
@@ -193,6 +197,11 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
                 {a.stuckNote && (
                   <p>
                     <span className="text-muted-foreground">Stuck on:</span> {a.stuckNote}
+                  </p>
+                )}
+                {a.twistAnswer && (
+                  <p>
+                    <span className="text-muted-foreground">Twist answer:</span> {a.twistAnswer}
                   </p>
                 )}
                 {a.notes && <p className="whitespace-pre-wrap">{a.notes}</p>}

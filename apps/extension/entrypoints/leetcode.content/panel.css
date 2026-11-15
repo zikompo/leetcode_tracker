@@ -946,3 +946,38 @@
   margin: 0;
   font-weight: 500;
 }
+
+/* Timebox nudge (spec 5.5) and twist prompt (spec 5.4) */
+.lt-nudge,
+.lt-twist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.lt-nudge {
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+}
+.lt-nudge-head {
+  margin: 0;
+}
+.lt-nudge-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lt-twist {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.lt-twist-q {
+  margin: 0;
+  font-weight: 600;
+}
+.lt-twist-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

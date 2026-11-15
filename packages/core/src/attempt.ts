@@ -110,6 +110,7 @@ export function buildAttempt(input: BuildAttemptInput): Attempt {
     patternClue: trimOrUndefined(draft.patternClue),
     stuckNote: trimOrUndefined(draft.stuckNote),
     notes: trimOrUndefined(draft.notes),
+    twistAnswer: trimOrUndefined(draft.twistAnswer),
     code: draft.code ?? session.code,
     language: session.language,
   };

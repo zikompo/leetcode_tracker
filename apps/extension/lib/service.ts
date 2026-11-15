@@ -40,7 +40,13 @@ const BUILTIN_PATTERN_IDS: ReadonlySet<string> = new Set(PATTERNS.map((p) => p.i
 /** The data side of the API; complexity suggestions and sync live elsewhere. */
 type DataApi = Omit<
   Api,
-  "getAiStatus" | "analyzeComplexity" | "getSyncStatus" | "syncNow" | "signOut" | `github${string}`
+  | "getAiStatus"
+  | "analyzeComplexity"
+  | "generateTwists"
+  | "getSyncStatus"
+  | "syncNow"
+  | "signOut"
+  | `github${string}`
 >;
 type AsyncApi = {
   [K in keyof DataApi]: (...args: Parameters<DataApi[K]>) => Promise<ReturnType<DataApi[K]>>;
@@ -200,6 +206,16 @@ export function createService(
         { ...problem, dueOverride: { due, at: nowIso() }, updatedAt: nowIso() },
       ]);
       return queueFrom(await snapshot());
+    },
+
+    async setTwists({ slug, twists }) {
+      const problem = (await repo.getProblem(slug)) ?? stubProblem(slug);
+      const clean = [...new Set(twists.map((t) => t.trim()).filter(Boolean))].slice(0, 10);
+      const next: Problem = { ...problem, updatedAt: nowIso() };
+      if (clean.length) next.twists = clean;
+      else delete next.twists;
+      await repo.putProblems([next]);
+      return problemState(slug);
     },
 
     getSession: (slug) => sessions.get(slug),

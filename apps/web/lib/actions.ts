@@ -299,6 +299,23 @@ export async function importJson(json: string): Promise<ActionResult> {
   }
 }
 
+/** Replace a problem's twist prompts (spec 5.4), one per line in the form. */
+export async function setTwists(slug: string, twists: string[]): Promise<ActionResult> {
+  if (DEMO) return DEMO_RESULT;
+  try {
+    const clean = [...new Set(twists.map((t) => t.trim()).filter(Boolean))].slice(0, 10);
+    const problem = await currentProblem(slug);
+    const next: Problem = { ...problem, updatedAt: now() };
+    if (clean.length) next.twists = clean;
+    else delete next.twists;
+    await push({ problems: [next] });
+    revalidatePath(`/problems/${slug}`);
+    return { ok: true, message: clean.length ? "Twists saved." : "Twists cleared." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 /**
  * Snooze or reschedule reviews (spec 7.1, page 2): set a due date by hand for each problem, or
  * clear it with `due: null`. The browser sends the date as its own local midnight, so "today"

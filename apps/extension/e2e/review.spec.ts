@@ -220,3 +220,62 @@ test("the dashboard shows pattern mastery, list progress and leeches", async ({
   await expect(dash.getByText("Valid Anagram")).toBeVisible();
   await expect(dash.locator(".stuck li")).toHaveCount(3);
 });
+
+test("a twist prompt follows a review of a problem you know well", async ({
+  context,
+  extensionId,
+}, testInfo) => {
+  await importAttempts(context, extensionId, reviewHistory(), testInfo.outputPath("export.json"));
+  const page = await context.newPage();
+  await page.goto("https://leetcode.com/problems/two-sum/description/");
+  await page.click("#submit-ac");
+  const panel = page.getByRole("region", { name: "LeetTrack" });
+  const twist = panel.getByRole("region", { name: "Twist" });
+  // No AI set up, so you write the first ones yourself.
+  await twist.getByRole("button", { name: "Write twists" }).click();
+  await twist.getByLabel("Twists, one per line").fill("What if the array were sorted?");
+  await twist.getByRole("button", { name: "Save twists" }).click();
+  await expect(twist).toContainText("What if the array were sorted?");
+  await twist.getByLabel("Twist answer").fill("Two pointers instead of a hash map");
+  await panel.getByRole("button", { name: "Save attempt" }).click();
+  await expect(page.getByText("Attempt saved.")).toBeVisible();
+});
+
+test("past the timebox, the panel offers one hint and the help is logged", async ({
+  context,
+  extensionId,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.getByLabel("Timebox (minutes; 0 turns it off)").fill("1");
+  await expect(options.getByLabel("Timebox (minutes; 0 turns it off)")).toHaveValue("1");
+  // An attempt already 58 seconds in, so the one-minute timebox runs out right away.
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const now = new Date().toISOString();
+  await worker.evaluate(
+    (session) =>
+      (globalThis as unknown as { chrome: typeof browser }).chrome.storage.session.set({
+        "session:two-sum": session,
+      }),
+    {
+      slug: "two-sum",
+      startedAt: now,
+      lastActiveAt: now,
+      activeSeconds: 58,
+      submissions: [],
+      submissionIds: [],
+      viewedSolutionDetected: false,
+    },
+  );
+  const page = await context.newPage();
+  await page.goto("https://leetcode.com/problems/two-sum/description/");
+  const panel = page.getByRole("region", { name: "LeetTrack" });
+  const nudge = panel.getByRole("status", { name: "Timebox" });
+  await expect(nudge).toContainText("Try one hint", { timeout: 10_000 });
+  await nudge.getByRole("button", { name: "I used this" }).click();
+  await expect(nudge).toHaveCount(0);
+  await page.click("#submit-ac");
+  await expect(panel.getByRole("region", { name: "Attempt summary" })).toContainText(
+    "With help · Hint or topic tags",
+  );
+});

@@ -94,6 +94,24 @@ export function ReviewSettings({
         ))}
       </fieldset>
 
+      <label className="field">
+        <span>Timebox (minutes; 0 turns it off)</span>
+        <input
+          type="number"
+          min={0}
+          max={180}
+          value={settings.timeboxMinutes}
+          onChange={(e) => {
+            const n = Math.round(Number(e.target.value));
+            if (Number.isFinite(n) && n >= 0 && n <= 180) void save({ timeboxMinutes: n });
+          }}
+        />
+      </label>
+      <p className="muted small">
+        When an attempt runs past this without an Accepted, the panel suggests one hint at a time
+        rather than the solution.
+      </p>
+
       <label className="check">
         <input
           type="checkbox"

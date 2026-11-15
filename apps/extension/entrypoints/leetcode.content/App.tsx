@@ -255,6 +255,11 @@ export function App({ controller }: { controller: PageController }) {
                     analyzing={state.analyzing}
                     onRetryAnalysis={(at) => void controller.analyzeCheckpoint(at)}
                     onCreatePattern={(name) => controller.addCustomPattern(name)}
+                    timeboxMinutes={state.settings.timeboxMinutes}
+                    onTakeHelp={(level) => controller.takeHelp(level)}
+                    onDismissNudge={() => controller.dismissNudge()}
+                    onGenerateTwists={() => controller.generateTwists()}
+                    onSetTwists={(twists) => controller.setTwists(twists)}
                   />
                 ) : (
                   <div className="lt-empty">

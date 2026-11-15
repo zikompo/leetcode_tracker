@@ -101,3 +101,33 @@ test("a prep-tracker export imports attempts, mocks and the interview date", asy
   await options.locator('input[type="file"]').setInputFiles(file);
   await expect(options.getByText("Imported from your prep tracker: 0 attempts")).toBeVisible();
 });
+
+test("first install opens onboarding, and its choices are saved", async ({
+  context,
+  extensionId,
+}) => {
+  const url = `chrome-extension://${extensionId}/onboarding.html`;
+  await expect
+    .poll(() => context.pages().some((p) => p.url() === url), { timeout: 10_000 })
+    .toBe(true);
+  const page = await context.newPage();
+  await page.goto(url);
+  await expect(page.getByText("Step 1 of 5")).toBeVisible();
+  await page.getByLabel("Blind 75").check();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("region", { name: "Interview dates" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip" }).click();
+  await page.getByRole("radio", { name: /In Chrome's side panel/ }).click();
+  await expect(page.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("button", { name: "Import JSON" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip" }).click();
+  await expect(page.getByRole("button", { name: "Start solving" })).toBeVisible();
+
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(
+    options.getByRole("region", { name: "Daily review" }).getByLabel("Blind 75"),
+  ).toBeChecked();
+  await expect(options.getByRole("radio", { name: /In Chrome's side panel/ })).toBeChecked();
+});

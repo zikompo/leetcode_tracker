@@ -3,7 +3,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { DEMO, SUPABASE_CONFIGURED, SUPABASE_KEY, SUPABASE_URL } from "./lib/env";
 
 /** Pages that need an account; everyone else is sent to the sign-in page. */
-const APP_PATHS = ["/dashboard", "/problems", "/patterns", "/lists", "/settings", "/export"];
+const APP_PATHS = [
+  "/dashboard",
+  "/review",
+  "/problems",
+  "/patterns",
+  "/lists",
+  "/plan",
+  "/mocks",
+  "/clues",
+  "/settings",
+  "/export",
+];
 
 /** Refresh the Supabase session cookie once per navigation, and guard the app pages. */
 export async function proxy(request: NextRequest) {

@@ -62,12 +62,15 @@ export default async function Home({
           </Button>
         </form>
       ) : (
-        <p className="text-xs text-bad">
+        <p className="text-xs text-bad" data-slot="setup-needed">
           Sign-in isn&apos;t set up yet: add your Supabase project to{" "}
           <code>apps/web/.env.local</code> (see <code>docs/supabase-setup.md</code>), or run with{" "}
           <code>LEETTRACK_DEMO=1</code>.
         </p>
       )}
+      <p className="text-xs text-muted-foreground">
+        <Link href="/privacy">Privacy policy</Link>
+      </p>
     </main>
   );
 }

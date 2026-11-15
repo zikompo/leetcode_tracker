@@ -271,6 +271,18 @@ test("review queue: select reviews and snooze or move them", async ({ page }) =>
   await expectNoPageOverflow(page);
 });
 
+test("the privacy policy is public and says what is stored", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy policy", level: 1 })).toBeVisible();
+  await expect(page.getByText(/never stores problem statements/i)).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page.getByRole("link", { name: "Privacy policy" })).toHaveAttribute(
+    "href",
+    "/privacy",
+  );
+  await expectNoPageOverflow(page);
+});
+
 test("connecting the extension isn't offered in the demo", async ({ page }) => {
   await page.goto("/connect-extension?ext=abcdefghijklmnopabcdefghijklmnop");
   await expect(page.getByText("The demo has no accounts")).toBeVisible();

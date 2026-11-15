@@ -91,6 +91,25 @@ export default async function DashboardPage() {
         })}
       </PageHead>
 
+      {snap.attempts.length === 0 && (
+        <Panel title="Get started" description="Nothing logged on this account yet.">
+          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm">
+            <li>Install the LeetTrack extension in Chrome.</li>
+            <li>
+              In its settings, click <strong>Sign in with GitHub</strong> to connect it to this
+              account.
+            </li>
+            <li>
+              Solve a problem on LeetCode. After an Accepted, the log panel saves it in one tap.
+            </li>
+          </ol>
+          <p className="text-xs text-muted-foreground">
+            Have history already? Import a LeetTrack export or your prep-tracker file on the{" "}
+            <Link href="/settings">Settings</Link> page.
+          </p>
+        </Panel>
+      )}
+
       {/*
         Two rows. In each, the cards share a height and the last card of each column grows to
         fill it, so every edge lines up. Below lg the columns dissolve (contents) and the cards

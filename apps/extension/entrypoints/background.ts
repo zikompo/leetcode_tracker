@@ -100,7 +100,13 @@ export default defineBackground(() => {
     void refreshBadge();
     void account.sync();
   });
-  browser.runtime.onInstalled.addListener(() => void refreshBadge());
+  browser.runtime.onInstalled.addListener((details) => {
+    void refreshBadge();
+    // First install: a short setup page (lists, interview date, panel, import, sign-in).
+    if (details.reason === "install") {
+      void browser.tabs.create({ url: browser.runtime.getURL("/onboarding.html") });
+    }
+  });
   void refreshBadge();
 
   /**

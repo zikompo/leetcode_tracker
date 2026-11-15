@@ -1,4 +1,4 @@
-import type { Attempt, Problem, Settings } from "@leettrack/core";
+import type { Attempt, CustomList, Problem, Settings } from "@leettrack/core";
 import type { AttemptSession } from "./types";
 
 /** Persistence used by the background service. IndexedDB in production, in-memory in tests. */
@@ -11,6 +11,9 @@ export interface Repo {
   putAttempts(attempts: Attempt[]): Promise<void>;
   getSettings(): Promise<Settings | undefined>;
   putSettings(settings: Settings): Promise<void>;
+  /** Includes deleted lists (tombstones), so deletes can sync. */
+  getCustomLists(): Promise<CustomList[]>;
+  putCustomLists(lists: CustomList[]): Promise<void>;
 }
 
 export interface SessionStore {
@@ -23,6 +26,7 @@ export function memoryRepo(): Repo {
   const problems = new Map<string, Problem>();
   const attempts = new Map<string, Attempt>();
   let settings: Settings | undefined;
+  let lists: CustomList[] = [];
   return {
     getProblem: async (slug) => problems.get(slug),
     allProblems: async () => [...problems.values()],
@@ -33,6 +37,10 @@ export function memoryRepo(): Repo {
     getSettings: async () => settings,
     putSettings: async (s) => {
       settings = s;
+    },
+    getCustomLists: async () => [...lists],
+    putCustomLists: async (ls) => {
+      lists = [...ls];
     },
   };
 }

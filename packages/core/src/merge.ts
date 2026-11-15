@@ -1,4 +1,4 @@
-import type { Attempt, Problem, Settings } from "./types";
+import type { Attempt, CustomList, Problem, Settings } from "./types";
 
 interface Versioned {
   updatedAt: string;
@@ -21,14 +21,23 @@ export function mergeAttempts(local: readonly Attempt[], incoming: readonly Atte
   return [...byId.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 }
 
-/**
- * Problems merge by slug with record-level LWW. (Per-field timestamps arrive with sync in M4.)
- */
+/** Problems merge by slug with record-level last-write-wins. */
 export function mergeProblems(local: readonly Problem[], incoming: readonly Problem[]): Problem[] {
   const bySlug = new Map<string, Problem>();
   for (const p of local) bySlug.set(p.slug, p);
   for (const p of incoming) bySlug.set(p.slug, lww(bySlug.get(p.slug), p));
   return [...bySlug.values()];
+}
+
+/** Custom lists merge by id, last write wins; a delete is a newer tombstone. */
+export function mergeCustomLists(
+  local: readonly CustomList[],
+  incoming: readonly CustomList[],
+): CustomList[] {
+  const byId = new Map<string, CustomList>();
+  for (const l of local) byId.set(l.id, l);
+  for (const l of incoming) byId.set(l.id, lww(byId.get(l.id), l));
+  return [...byId.values()];
 }
 
 export function mergeSettings(local: Settings, incoming: Settings): Settings {

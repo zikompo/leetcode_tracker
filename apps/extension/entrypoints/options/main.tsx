@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import type { PanelAutoOpen, Settings } from "@leettrack/core";
 import { call } from "@/lib/messaging";
 import type { Stats } from "@/lib/types";
+import { AccountSettings } from "./AccountSettings";
 import { AiSettings } from "./AiSettings";
 import { ReviewSettings } from "./ReviewSettings";
 import { browser } from "wxt/browser";
@@ -89,6 +90,8 @@ function Options() {
           ))}
         </div>
       </section>
+
+      <AccountSettings />
 
       {settings && <ReviewSettings settings={settings} onChange={setSettings} />}
 

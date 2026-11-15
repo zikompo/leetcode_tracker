@@ -85,6 +85,14 @@ export const attemptSchema = z.object({
   updatedAt: isoDate,
 });
 
+export const customListSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  slugs: z.array(z.string()),
+  deleted: z.boolean().optional(),
+  updatedAt: isoDate,
+});
+
 export const settingsSchema = z.object({
   panelAutoOpen: z.enum(["accepted", "every_submission", "manual"]),
   customPatterns: z.array(z.object({ id: z.string(), name: z.string() })).optional(),

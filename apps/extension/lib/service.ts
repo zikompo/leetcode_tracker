@@ -2,92 +2,84 @@ import {
   DEFAULT_SETTINGS,
   addCustomPattern,
   buildExport,
-  buildQueue,
-  computeMastery,
-  deriveStatus,
-  effectivePatterns,
-  getScheduler,
-  isLeech,
-  masteryInsights,
-  medianSolveSeconds,
   mergeAttempts,
+  mergeCustomLists,
   mergeProblems,
   mergeSettings,
   parseExport,
-  quickReviewEligible,
-  replayCard,
   resolvePatternId,
   resolvePatternIds,
-  retrievability,
   type Attempt,
-  type CardState,
-  type Difficulty,
-  type MasteryProblem,
+  type CustomList,
   type Problem,
-  type ProblemStatus,
-  type Queue,
-  type ReviewSource,
-  type Scheduler,
   type Settings,
 } from "@leettrack/core";
-import { LISTS, PATTERNS, SEED_BY_SLUG, listProblems, patternsFromTopics } from "@leettrack/seed";
+import {
+  buildSnapshot,
+  dashboardFrom,
+  problemStateFrom,
+  queueFrom,
+  statsFrom,
+  type Snapshot,
+} from "@leettrack/insights";
+import { PATTERNS, SEED_BY_SLUG, patternsFromTopics } from "@leettrack/seed";
 import type { ProblemMetadata } from "../adapters/leetcode";
 import type { Repo, SessionStore } from "./repo";
-import type {
-  Api,
-  CardSummary,
-  Dashboard,
-  ImportSummary,
-  LeechInfo,
-  ListProgress,
-  ProblemState,
-  Stats,
-} from "./types";
+import type { Api, ImportSummary } from "./types";
 
 const BUILTIN_PATTERN_IDS: ReadonlySet<string> = new Set(PATTERNS.map((p) => p.id));
-const STATUSES: ProblemStatus[] = [
-  "unseen",
-  "in_progress",
-  "solved_with_help",
-  "fully_solved",
-  "mastered",
-];
 
-/** The data side of the API; complexity suggestions live in lib/ai. */
-type DataApi = Omit<Api, "getAiStatus" | "analyzeComplexity">;
+/** The data side of the API; complexity suggestions and sync live elsewhere. */
+type DataApi = Omit<
+  Api,
+  "getAiStatus" | "analyzeComplexity" | "getSyncStatus" | "syncNow" | "signOut"
+>;
 type AsyncApi = {
   [K in keyof DataApi]: (...args: Parameters<DataApi[K]>) => Promise<ReturnType<DataApi[K]>>;
 };
 
-const byEnded = (a: Attempt, b: Attempt) => a.endedAt.localeCompare(b.endedAt);
-const endOfLocalDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-
-function groupBySlug(attempts: readonly Attempt[]): Map<string, Attempt[]> {
-  const out = new Map<string, Attempt[]>();
-  for (const a of attempts) out.set(a.problemSlug, [...(out.get(a.problemSlug) ?? []), a]);
-  for (const list of out.values()) list.sort(byEnded);
-  return out;
+/** Records arriving from an import file or the server. */
+export interface IncomingData {
+  problems?: readonly Problem[];
+  attempts?: readonly Attempt[];
+  settings?: Settings;
+  customLists?: readonly CustomList[];
 }
 
-interface ProblemInfo {
-  title?: string;
-  frontendId?: string;
-  difficulty?: Difficulty;
-}
-
-/** Everything the scheduler-backed views need, loaded once per request. */
-interface Snapshot {
-  problems: Problem[];
-  attempts: Attempt[];
-  s: Settings;
-  scheduler: Scheduler;
-  bySlug: Map<string, Attempt[]>;
-  problemMap: Map<string, Problem>;
-  cards: Map<string, CardState>;
-  now: Date;
-  /** Confirmed and suggested patterns for any problem, seed-only ones included. */
-  patternsOf(slug: string): { patterns: string[]; suggestedPatterns: string[] };
-  info(slug: string): ProblemInfo;
+/**
+ * Merge incoming records into local storage (spec 9.3): attempts by union, everything else
+ * last-write-wins. Shared by JSON import and sync pulls. Returns what changed.
+ */
+export async function mergeIntoRepo(repo: Repo, data: IncomingData): Promise<ImportSummary> {
+  const [localAttempts, localProblems, localSettings, localLists] = await Promise.all([
+    repo.allAttempts(),
+    repo.allProblems(),
+    repo.getSettings(),
+    repo.getCustomLists(),
+  ]);
+  const localById = new Map(localAttempts.map((a) => [a.id, a]));
+  const changedAttempts = mergeAttempts(localAttempts, data.attempts ?? []).filter(
+    (a) => localById.get(a.id) !== a,
+  );
+  const attemptsAdded = changedAttempts.filter((a) => !localById.has(a.id)).length;
+  const localBySlug = new Map(localProblems.map((p) => [p.slug, p]));
+  const changedProblems = mergeProblems(localProblems, data.problems ?? []).filter(
+    (p) => localBySlug.get(p.slug) !== p,
+  );
+  await repo.putAttempts(changedAttempts);
+  await repo.putProblems(changedProblems);
+  if (data.settings) {
+    const merged = mergeSettings({ ...DEFAULT_SETTINGS, ...localSettings }, data.settings);
+    if (merged !== localSettings) await repo.putSettings(merged);
+  }
+  if (data.customLists?.length) {
+    await repo.putCustomLists(mergeCustomLists(localLists, data.customLists));
+  }
+  return {
+    attemptsAdded,
+    attemptsUpdated: changedAttempts.length - attemptsAdded,
+    problemsMerged: changedProblems.length,
+  };
 }
 
 /** All background data logic, independent of Chrome APIs so it can be unit tested. */
@@ -104,123 +96,16 @@ export function createService(
   }
 
   async function snapshot(): Promise<Snapshot> {
-    const [problems, attempts, s] = await Promise.all([
+    const [problems, attempts, s, customLists] = await Promise.all([
       repo.allProblems(),
       repo.allAttempts(),
       settings(),
+      repo.getCustomLists(),
     ]);
-    const scheduler = getScheduler(s.desiredRetention);
-    const bySlug = groupBySlug(attempts);
-    const problemMap = new Map(problems.map((p) => [p.slug, p]));
-    const cards = new Map<string, CardState>();
-    for (const [slug, list] of bySlug) {
-      const card = replayCard(slug, list, scheduler);
-      if (card) cards.set(slug, card);
-    }
-    const now = clock();
-    const merges = s.patternMerges ?? {};
-    const patternsOf = (slug: string) => {
-      const p = problemMap.get(slug);
-      return {
-        patterns: resolvePatternIds(p?.patterns ?? [], merges),
-        suggestedPatterns: resolvePatternIds(
-          p?.suggestedPatterns.length
-            ? p.suggestedPatterns
-            : (SEED_BY_SLUG.get(slug)?.suggestedPatterns ?? []),
-          merges,
-        ),
-      };
-    };
-    const info = (slug: string): ProblemInfo => {
-      const p = problemMap.get(slug);
-      const seed = SEED_BY_SLUG.get(slug);
-      const title = p?.title || seed?.title;
-      const frontendId = p?.frontendId || seed?.frontendId;
-      const difficulty: Difficulty | undefined = p?.difficulty ?? seed?.difficulty;
-      return {
-        ...(title ? { title } : {}),
-        ...(frontendId ? { frontendId } : {}),
-        ...(difficulty ? { difficulty } : {}),
-      };
-    };
-    return { problems, attempts, s, scheduler, bySlug, problemMap, cards, now, patternsOf, info };
+    return buildSnapshot({ problems, attempts, settings: s, customLists }, clock());
   }
 
-  function cardSummary(snap: Snapshot, slug: string): CardSummary | undefined {
-    const card = snap.cards.get(slug);
-    if (!card) return undefined;
-    const attempts = snap.bySlug.get(slug) ?? [];
-    return {
-      due: card.due,
-      state: card.state,
-      stabilityDays: card.stability,
-      retrievability: retrievability(card, snap.now, snap.scheduler),
-      reps: card.reps,
-      lapses: card.lapses,
-      isDue: new Date(card.due) < endOfLocalDay(snap.now),
-      isLeech: isLeech(attempts),
-      quickEligible: quickReviewEligible(card, attempts),
-    };
-  }
-
-  async function problemState(slug: string): Promise<ProblemState> {
-    const snap = await snapshot();
-    const problem = snap.problemMap.get(slug);
-    const attempts = [...(snap.bySlug.get(slug) ?? [])].sort((a, b) =>
-      a.startedAt.localeCompare(b.startedAt),
-    );
-    const card = snap.cards.get(slug);
-    const state: ProblemState = {
-      slug,
-      attempts,
-      status: deriveStatus(problem, attempts, card?.stability),
-      suggestedPatterns: snap.patternsOf(slug).suggestedPatterns,
-    };
-    const summary = cardSummary(snap, slug);
-    if (summary) state.card = summary;
-    if (problem) {
-      state.problem = problem;
-      const history = snap.attempts.flatMap((a) => {
-        const difficulty = snap.problemMap.get(a.problemSlug)?.difficulty;
-        return difficulty ? [{ difficulty, attempt: a }] : [];
-      });
-      const median = medianSolveSeconds(history, problem.difficulty);
-      if (median !== undefined) state.medianSolveSeconds = median;
-    }
-    return state;
-  }
-
-  function queueFrom(snap: Snapshot): Queue {
-    const reviews: ReviewSource[] = [...snap.cards].map(([slug, card]) => ({
-      slug,
-      card,
-      attempts: snap.bySlug.get(slug) ?? [],
-      ...snap.info(slug),
-      patterns: [...effectivePatterns(snap.patternsOf(slug))],
-    }));
-    const newCandidates = snap.s.activeLists.flatMap((id) =>
-      listProblems(id).map((p) => ({
-        slug: p.slug,
-        title: p.title,
-        frontendId: p.frontendId,
-        difficulty: p.difficulty,
-        patterns: snap.patternsOf(p.slug).suggestedPatterns,
-      })),
-    );
-    const startedSlugs = new Set([
-      ...snap.bySlug.keys(),
-      ...snap.problems.filter((p) => p.statusOverride).map((p) => p.slug),
-    ]);
-    return buildQueue({
-      now: snap.now,
-      reviews,
-      newCandidates,
-      startedSlugs,
-      attempts: snap.attempts,
-      settings: snap.s,
-      retrievabilityOf: (card) => retrievability(card, snap.now, snap.scheduler),
-    });
-  }
+  const problemState = async (slug: string) => problemStateFrom(await snapshot(), slug);
 
   function stubProblem(slug: string): Problem {
     const seed = SEED_BY_SLUG.get(slug);
@@ -299,6 +184,10 @@ export function createService(
       return next;
     },
 
+    async getCustomLists() {
+      return (await repo.getCustomLists()).filter((l) => !l.deleted);
+    },
+
     async addCustomPattern(name: string) {
       const current = await settings();
       const { patterns, id } = addCustomPattern(
@@ -350,100 +239,18 @@ export function createService(
       return next;
     },
 
-    async getStats(): Promise<Stats> {
-      const snap = await snapshot();
-      const slugs = new Set([
-        ...snap.bySlug.keys(),
-        ...snap.problems.filter((p) => p.statusOverride).map((p) => p.slug),
-      ]);
-      let fullySolved = 0;
-      for (const slug of slugs) {
-        const s = deriveStatus(
-          snap.problemMap.get(slug),
-          snap.bySlug.get(slug) ?? [],
-          snap.cards.get(slug)?.stability,
-        ).status;
-        if (s === "fully_solved" || s === "mastered") fullySolved += 1;
-      }
-      const queue = queueFrom(snap);
-      return {
-        problemsAttempted: snap.bySlug.size,
-        attempts: snap.attempts.length,
-        fullySolved,
-        dueToday: queue.items.filter((i) => i.kind === "review").length,
-        leeches: [...snap.bySlug.values()].filter((a) => isLeech(a)).length,
-      };
-    },
-
-    async getQueue() {
-      return queueFrom(await snapshot());
-    },
-
-    async getDashboard(): Promise<Dashboard> {
-      const snap = await snapshot();
-      const difficultyOf = (slug: string): Difficulty => snap.info(slug).difficulty ?? "Medium";
-      const masteryProblems: MasteryProblem[] = [...snap.bySlug].map(([slug, attempts]) => {
-        const card = snap.cards.get(slug);
-        return {
-          slug,
-          difficulty: difficultyOf(slug),
-          ...snap.patternsOf(slug),
-          attempts,
-          ...(card ? { card } : {}),
-        };
-      });
-      const activeSlugs = [...new Set(snap.s.activeLists.flatMap((id) => listProblems(id)))];
-      const patterns = computeMastery({
-        problems: masteryProblems,
-        listProblems: activeSlugs.map((p) => {
-          const { patterns, suggestedPatterns } = snap.patternsOf(p.slug);
-          return { slug: p.slug, patterns: [...new Set([...patterns, ...suggestedPatterns])] };
-        }),
-        retrievabilityOf: (card) => retrievability(card, snap.now, snap.scheduler),
-      });
-
-      const lists: ListProgress[] = LISTS.map((l) => {
-        const byStatus = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<
-          ProblemStatus,
-          number
-        >;
-        const items = listProblems(l.id);
-        for (const p of items) {
-          const status = deriveStatus(
-            snap.problemMap.get(p.slug),
-            snap.bySlug.get(p.slug) ?? [],
-            snap.cards.get(p.slug)?.stability,
-          ).status;
-          byStatus[status] += 1;
-        }
-        return {
-          id: l.id,
-          name: l.name,
-          active: snap.s.activeLists.includes(l.id),
-          total: items.length,
-          byStatus,
-        };
-      });
-
-      const leeches: LeechInfo[] = [...snap.bySlug]
-        .filter(([, attempts]) => isLeech(attempts))
-        .map(([slug, attempts]) => ({
-          slug,
-          title: snap.info(slug).title ?? slug,
-          againCount: attempts.filter((a) => a.rating === 1).length,
-          stuckNotes: attempts.flatMap((a) =>
-            a.stuckNote ? [{ at: a.endedAt, note: a.stuckNote }] : [],
-          ),
-        }))
-        .sort((a, b) => b.againCount - a.againCount);
-
-      return { patterns, insights: masteryInsights(patterns), lists, leeches };
-    },
+    getStats: async () => statsFrom(await snapshot()),
+    getQueue: async () => queueFrom(await snapshot()),
+    getDashboard: async () => dashboardFrom(await snapshot()),
 
     async exportData() {
-      const [problems, attempts] = await Promise.all([repo.allProblems(), repo.allAttempts()]);
+      const [problems, attempts, customLists] = await Promise.all([
+        repo.allProblems(),
+        repo.allAttempts(),
+        repo.getCustomLists(),
+      ]);
       return JSON.stringify(
-        buildExport({ problems, attempts, settings: await settings() }, clock()),
+        buildExport({ problems, attempts, settings: await settings(), customLists }, clock()),
         null,
         2,
       );
@@ -452,27 +259,7 @@ export function createService(
     async importData(json: string): Promise<ImportSummary> {
       const parsed = parseExport(json);
       if (!parsed.ok) throw new Error(parsed.error);
-      const { data } = parsed;
-      const [localAttempts, localProblems] = await Promise.all([
-        repo.allAttempts(),
-        repo.allProblems(),
-      ]);
-      const localById = new Map(localAttempts.map((a) => [a.id, a]));
-      const mergedAttempts = mergeAttempts(localAttempts, data.attempts);
-      const changedAttempts = mergedAttempts.filter((a) => localById.get(a.id) !== a);
-      const attemptsAdded = changedAttempts.filter((a) => !localById.has(a.id)).length;
-      const localBySlug = new Map(localProblems.map((p) => [p.slug, p]));
-      const changedProblems = mergeProblems(localProblems, data.problems).filter(
-        (p) => localBySlug.get(p.slug) !== p,
-      );
-      await repo.putAttempts(changedAttempts);
-      await repo.putProblems(changedProblems);
-      if (data.settings) await repo.putSettings(mergeSettings(await settings(), data.settings));
-      return {
-        attemptsAdded,
-        attemptsUpdated: changedAttempts.length - attemptsAdded,
-        problemsMerged: changedProblems.length,
-      };
+      return mergeIntoRepo(repo, parsed.data);
     },
   };
 }

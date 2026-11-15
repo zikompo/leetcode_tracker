@@ -65,3 +65,15 @@ body {
 .popup .stats {
   grid-template-columns: repeat(3, 1fr);
 }
+.sync-line {
+  margin: -6px 0 0;
+  font-size: 12px;
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: inherit;
+}

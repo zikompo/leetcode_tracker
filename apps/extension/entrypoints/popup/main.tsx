@@ -3,7 +3,8 @@ import ReactDOM from "react-dom/client";
 import { browser } from "wxt/browser";
 import { STATUS_LABELS, formatDuration, type Queue, type QueueItem } from "@leettrack/core";
 import { parseProblemUrl, problemUrl } from "@/adapters/leetcode";
-import { formatDue } from "@/lib/format";
+import type { SyncStatus } from "@/lib/account";
+import { formatAgo, formatDue } from "@/lib/format";
 import { call } from "@/lib/messaging";
 import type { ProblemState, Stats, TabMessage } from "@/lib/types";
 import "@/components/base.css";
@@ -100,6 +101,7 @@ function Popup() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sync, setSync] = useState<SyncStatus | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -110,9 +112,14 @@ function Popup() {
         setTab("problem");
         setProblem(await call("getProblemState", loc.slug));
       }
-      const [q, s] = await Promise.all([call("getQueue"), call("getStats")]);
+      const [q, s, st] = await Promise.all([
+        call("getQueue"),
+        call("getStats"),
+        call("getSyncStatus").catch(() => null),
+      ]);
       setQueue(q);
       setStats(s);
+      setSync(st);
     })().catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
@@ -143,6 +150,22 @@ function Popup() {
           </button>
         </div>
       </header>
+
+      {sync?.configured && (
+        <p className={`sync-line ${sync.lastError ? "bad" : "muted"}`} role="status">
+          {!sync.signedIn ? (
+            <button className="link" onClick={() => browser.runtime.openOptionsPage()}>
+              Not syncing: sign in to back up your attempts
+            </button>
+          ) : sync.lastError ? (
+            "Sync failed: see Settings"
+          ) : sync.lastSyncAt ? (
+            `Synced ${formatAgo(sync.lastSyncAt)} as ${sync.userName ?? "you"}`
+          ) : (
+            "Syncing…"
+          )}
+        </p>
+      )}
 
       <nav className="tabs" role="tablist">
         {tabs.map(([id, label]) => (

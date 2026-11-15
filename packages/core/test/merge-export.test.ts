@@ -46,3 +46,14 @@ describe("export round trip", () => {
     expect(parseExport(JSON.stringify(bad))).toMatchObject({ ok: false });
   });
 });
+
+describe("custom lists", () => {
+  it("merge by id, newest wins, deletes included", async () => {
+    const { mergeCustomLists } = await import("../src");
+    const a = { id: "l1", name: "Graphs", slugs: ["a"], updatedAt: "2026-01-01T00:00:00.000Z" };
+    const gone = { ...a, deleted: true, updatedAt: "2026-01-02T00:00:00.000Z" };
+    const b = { id: "l2", name: "DP", slugs: [], updatedAt: "2026-01-01T00:00:00.000Z" };
+    expect(mergeCustomLists([a], [gone, b])).toEqual([gone, b]);
+    expect(mergeCustomLists([gone], [a])).toEqual([gone]);
+  });
+});

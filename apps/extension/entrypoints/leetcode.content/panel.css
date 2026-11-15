@@ -27,6 +27,7 @@
 }
 
 .lt-root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #1f2125;
   --surface: #282a2f;
   --surface-2: #32353b;
@@ -50,6 +51,11 @@
 .lt-root *::before,
 .lt-root *::after {
   box-sizing: border-box;
+}
+.lt-root,
+.lt-root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .lt-root button,
@@ -882,4 +888,44 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
+}
+
+/* One-line complexity summary (a suggestion, or a choice already made) */
+.lt-cx-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+.lt-cx-summary strong {
+  font-variant-numeric: tabular-nums;
+}
+.lt-cx-summary .lt-link {
+  margin-left: auto;
+}
+
+/* One-tap summary after Accepted */
+.lt-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.lt-quick dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.lt-quick dt {
+  color: var(--muted);
+}
+.lt-quick dd {
+  margin: 0;
+  font-weight: 500;
 }

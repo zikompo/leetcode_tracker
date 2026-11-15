@@ -1,4 +1,5 @@
 import { browser } from "wxt/browser";
+import { ACCOUNT_ENV, createAccount, isHandoff } from "@/lib/account";
 import { createAiService } from "@/lib/ai";
 import { chromeSessionStore, idbRepo } from "@/lib/db";
 import { createService } from "@/lib/service";
@@ -12,11 +13,29 @@ const CHANGES_QUEUE: ReadonlySet<ApiMethod> = new Set<ApiMethod>([
   "importData",
   "mergePattern",
 ]);
+/** Calls that change synced data; a sync follows a few seconds later. */
+const CHANGES_DATA: ReadonlySet<ApiMethod> = new Set<ApiMethod>([
+  ...CHANGES_QUEUE,
+  "upsertProblemMeta",
+  "addCustomPattern",
+  "renamePattern",
+]);
 const BADGE_ALARM = "leettrack-badge";
+const SYNC_ALARM = "leettrack-sync";
 const MIDNIGHT_ALARM = "leettrack-midnight";
 
 export default defineBackground(() => {
-  const service = { ...createService(idbRepo, chromeSessionStore), ...createAiService() };
+  const account = createAccount({ repo: idbRepo, onDataChanged: () => void refreshBadge() });
+  const service = {
+    ...createService(idbRepo, chromeSessionStore),
+    ...createAiService(),
+    getSyncStatus: () => account.status(),
+    syncNow: async () => {
+      await account.sync();
+      return account.status();
+    },
+    signOut: () => account.signOut(),
+  };
 
   /** Toolbar badge: reviews in today's queue (spec 4.6). */
   async function refreshBadge() {
@@ -38,12 +57,17 @@ export default defineBackground(() => {
   }
 
   void browser.alarms.create(BADGE_ALARM, { periodInMinutes: 60 });
+  void browser.alarms.create(SYNC_ALARM, { periodInMinutes: 15 });
   scheduleMidnight();
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === MIDNIGHT_ALARM) scheduleMidnight();
     if (alarm.name === BADGE_ALARM || alarm.name === MIDNIGHT_ALARM) void refreshBadge();
+    if (alarm.name === SYNC_ALARM) void account.sync();
   });
-  browser.runtime.onStartup.addListener(() => void refreshBadge());
+  browser.runtime.onStartup.addListener(() => {
+    void refreshBadge();
+    void account.sync();
+  });
   browser.runtime.onInstalled.addListener(() => void refreshBadge());
   void refreshBadge();
 
@@ -63,6 +87,7 @@ export default defineBackground(() => {
       (value) => {
         sendResponse({ ok: true, value } satisfies ApiResponse);
         if (CHANGES_QUEUE.has(req.method as ApiMethod)) void refreshBadge();
+        if (CHANGES_DATA.has(req.method as ApiMethod)) account.syncSoon();
       },
       (err: unknown) =>
         sendResponse({
@@ -71,5 +96,26 @@ export default defineBackground(() => {
         } satisfies ApiResponse),
     );
     return true; // async response
+  });
+
+  // Sign-in handoff from the website (spec 10.3). Chrome only delivers messages from the
+  // origins in the manifest's externally_connectable; check the sender again anyway.
+  const websiteOrigin = new URL(ACCOUNT_ENV.websiteUrl).origin;
+  browser.runtime.onMessageExternal.addListener((message: unknown, sender, sendResponse) => {
+    const origin = sender.url ? new URL(sender.url).origin : sender.origin;
+    if (origin !== websiteOrigin || !isHandoff(message)) {
+      sendResponse({ ok: false, error: "Not accepted." });
+      return false;
+    }
+    account.signIn(message).then(
+      (status) =>
+        sendResponse({
+          ok: status.signedIn,
+          ...(status.signedIn ? {} : { error: "Sign-in failed." }),
+        }),
+      (err: unknown) =>
+        sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+    );
+    return true;
   });
 });

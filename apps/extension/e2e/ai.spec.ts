@@ -74,7 +74,13 @@ test("an Accepted solution gets a complexity suggestion that pre-fills the form"
   await page.goto(PROBLEM);
   await page.click("#submit-ac");
   const panel = page.getByRole("region", { name: "LeetTrack" });
-  await expect(panel.getByText("Suggested by test-model. Tap to change.")).toBeVisible();
+  // A suggestion shows as one line; the chips only open to change it.
+  const summary = panel.getByLabel("Solution 1 complexity");
+  await expect(summary).toContainText("O(n) time · O(n) space");
+  await expect(summary).toContainText("suggested by test-model");
+  await expect(panel.getByRole("radiogroup", { name: "Solution 1 time complexity" })).toHaveCount(
+    0,
+  );
 
   // What was sent: the accepted code and the problem's name, with the user's key.
   expect(fake.state.requests).toHaveLength(1);
@@ -88,6 +94,7 @@ test("an Accepted solution gets a complexity suggestion that pre-fills the form"
   expect(sent.messages[1]!.content).toContain("# ac solution");
 
   const cx = (name: string) => panel.getByRole("radiogroup", { name });
+  await summary.getByRole("button", { name: "Change" }).click();
   await expect(
     cx("Solution 1 time complexity").getByRole("radio", { name: "O(n)", exact: true }),
   ).toHaveAttribute("aria-checked", "true");
@@ -96,7 +103,7 @@ test("an Accepted solution gets a complexity suggestion that pre-fills the form"
   ).toHaveAttribute("aria-checked", "true");
 
   // Matches the best known complexity, so Optimal is pre-selected and marked as suggested.
-  await panel.getByRole("radio", { name: "Solved alone" }).click();
+  await panel.getByRole("button", { name: "Edit details" }).click();
   const optimal = panel.getByRole("radio", { name: /^Optimal/ });
   await expect(optimal).toHaveAttribute("aria-checked", "true");
   await expect(optimal).toContainText("suggested");
@@ -122,7 +129,7 @@ test("a failed suggestion explains why and can be retried", async ({ context }) 
 
   fake.state.status = 200;
   await panel.getByRole("button", { name: "Retry" }).click();
-  await expect(panel.getByText("Suggested by test-model. Tap to change.")).toBeVisible();
+  await expect(panel.getByLabel("Solution 1 complexity")).toContainText("suggested by test-model");
 });
 
 test("nothing is sent while suggestions are off", async ({ context }) => {

@@ -17,3 +17,14 @@ describe("formatDue", () => {
     expect(formatDue(day(18), now)).toMatch(/\(in 4 days\)$/);
   });
 });
+
+describe("formatAgo", () => {
+  it("rounds to the nearest sensible unit", async () => {
+    const { formatAgo } = await import("./format");
+    const t = new Date("2026-11-14T12:00:00Z");
+    expect(formatAgo("2026-11-14T11:59:30Z", t)).toBe("just now");
+    expect(formatAgo("2026-11-14T11:55:00Z", t)).toBe("5 min ago");
+    expect(formatAgo("2026-11-14T09:00:00Z", t)).toBe("3 h ago");
+    expect(formatAgo("2026-11-12T12:00:00Z", t)).toBe("2 days ago");
+  });
+});

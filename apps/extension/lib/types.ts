@@ -1,18 +1,15 @@
 import type {
   Attempt,
-  CardState,
   Checkpoint,
-  DerivedStatus,
-  MasteryInsights,
-  PatternMastery,
-  Problem,
-  ProblemStatus,
+  CustomList,
   Queue,
   SessionObservation,
   Settings,
   StatusOverride,
 } from "@leettrack/core";
+import type { Dashboard, ProblemState, Stats } from "@leettrack/insights";
 import type { ProblemMetadata } from "../adapters/leetcode";
+import type { SyncStatus } from "./account";
 import type { AiStatus, AnalysisInput, ComplexitySuggestion } from "./ai";
 
 /** A checkpoint while the attempt is open: also keeps the code and any model suggestion. */
@@ -33,63 +30,14 @@ export interface AttemptSession extends SessionObservation {
   checkpoints?: SessionCheckpoint[];
 }
 
-/** A problem's FSRS card, as the UI needs it. Recomputed from attempts on every read. */
-export interface CardSummary {
-  due: string;
-  state: CardState["state"];
-  stabilityDays: number;
-  /** Estimated chance of recalling it right now, 0 to 1. */
-  retrievability: number;
-  reps: number;
-  lapses: number;
-  /** Due today or overdue. */
-  isDue: boolean;
-  isLeech: boolean;
-  quickEligible: boolean;
-}
-
-export interface ProblemState {
-  slug: string;
-  problem?: Problem;
-  attempts: Attempt[];
-  status: DerivedStatus;
-  /** Median active time of past independent solves at this difficulty. */
-  medianSolveSeconds?: number;
-  card?: CardSummary;
-  /** Pattern ids suggested by seed data and LeetCode topics. Spoilers: show only after logging. */
-  suggestedPatterns: string[];
-}
-
-export interface Stats {
-  problemsAttempted: number;
-  attempts: number;
-  fullySolved: number;
-  /** Reviews in today's queue. */
-  dueToday: number;
-  leeches: number;
-}
-
-export interface ListProgress {
-  id: string;
-  name: string;
-  active: boolean;
-  total: number;
-  byStatus: Record<ProblemStatus, number>;
-}
-
-export interface LeechInfo {
-  slug: string;
-  title: string;
-  againCount: number;
-  stuckNotes: Array<{ at: string; note: string }>;
-}
-
-export interface Dashboard {
-  patterns: PatternMastery[];
-  insights: MasteryInsights;
-  lists: ListProgress[];
-  leeches: LeechInfo[];
-}
+export type {
+  CardSummary,
+  Dashboard,
+  LeechInfo,
+  ListProgress,
+  ProblemState,
+  Stats,
+} from "@leettrack/insights";
 
 export interface ImportSummary {
   attemptsAdded: number;
@@ -118,12 +66,18 @@ export interface Api {
   renamePattern(input: { id: string; name: string }): Settings;
   /** Fold one pattern into another everywhere; the source disappears from the taxonomy. */
   mergePattern(input: { from: string; into: string }): Settings;
+  /** The user's own lists (synced from the website), without deleted ones. */
+  getCustomLists(): CustomList[];
   exportData(): string;
   importData(json: string): ImportSummary;
   /** Whether complexity suggestions are set up, and with what. */
   getAiStatus(): AiStatus;
   /** Ask the configured model for a complexity estimate. Sends the code to that provider. */
   analyzeComplexity(input: AnalysisInput): ComplexitySuggestion;
+  /** Account and sync state, for the popup and settings. */
+  getSyncStatus(): SyncStatus;
+  syncNow(): SyncStatus;
+  signOut(): SyncStatus;
 }
 
 export type ApiMethod = keyof Api;

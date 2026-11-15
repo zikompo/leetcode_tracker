@@ -19,3 +19,13 @@ export function formatDue(iso: string, now: Date = new Date()): string {
   });
   return `${date} (in ${days} days)`;
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 days ago". */
+export function formatAgo(iso: string, now: Date = new Date()): string {
+  const s = Math.max(0, (now.getTime() - Date.parse(iso)) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
+  const d = Math.floor(s / 86_400);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
+}

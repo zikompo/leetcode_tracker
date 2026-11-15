@@ -48,15 +48,19 @@ test("Accepted opens the panel pre-filled, and the saved attempt shows after reo
   await expect(panel.getByText("stopped at Accepted")).toBeVisible();
   await expect(panel.locator(".lt-solution").nth(1)).toContainText("Solution 2");
   await expect(panel.locator(".lt-solution-delta")).toHaveText(/^\+\d+s$/);
+  // After Accepted: a one-tap summary with the likely answers filled in.
+  const summary = panel.getByRole("region", { name: "Attempt summary" });
+  await expect(summary).toContainText("Solved alone");
+  await expect(summary).toContainText("Arrays & hashing"); // Two Sum's suggested pattern
+  await panel.getByRole("button", { name: "Edit details" }).click();
+
   await expect(panel.locator(".lt-observed")).toContainText("3 (2 AC)");
   await expect(panel.locator(".lt-observed")).toContainText("python3");
   await expect(panel.locator(".lt-observed")).toContainText("Solution viewedNo");
-
-  // Required-field validation
-  await panel.getByRole("button", { name: "Save attempt" }).click();
-  await expect(panel.getByText("Choose an outcome.")).toBeVisible();
-
-  await panel.getByRole("radio", { name: "Solved alone" }).click();
+  await expect(panel.getByRole("radio", { name: /^Solved alone/ })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
   await panel.getByRole("radio", { name: "Optimal", exact: true }).click();
   await expect(panel.getByRole("radio", { name: /Good/ })).toHaveAttribute("aria-checked", "true");
   // Complexity is picked from chips, one set per solution; "Other" takes free text.
@@ -71,11 +75,12 @@ test("Accepted opens the panel pre-filled, and the saved attempt shows after reo
   await expect(
     cx("Solution 2 time complexity").getByRole("radio", { name: "O(n)", exact: true }),
   ).toHaveAttribute("aria-checked", "true");
-  // Tags: Enter adds the best match, a click picks from the list, and new names become custom tags.
+  // Tags start from the problem's suggested patterns. Enter adds the best match, a click picks
+  // from the list, and new names become custom tags.
+  await expect(panel.locator(".lt-chip-selected")).toHaveText(["Arrays & hashing×"]);
   const tagInput = panel.getByLabel("Add a pattern tag");
-  await tagInput.fill("hash");
+  await tagInput.fill("two p");
   await tagInput.press("Enter");
-  await panel.getByRole("option", { name: "Two pointers" }).click();
   await tagInput.fill("Matrix walk");
   await expect(panel.getByRole("button", { name: "+ Create “Matrix walk”" })).toBeVisible();
   await tagInput.press("Enter");
@@ -209,6 +214,7 @@ test("re-submitting without new work adds no checkpoint, and a checkpoint can be
   await expect(panel.locator(".lt-solution")).toHaveCount(1);
   // The clock is stopped, so the same solution submitted again is not a new checkpoint.
   await page.click("#submit-ac");
+  await panel.getByRole("button", { name: "Edit details" }).click();
   await expect(panel.locator(".lt-observed")).toContainText("2 (2 AC)");
   await expect(panel.locator(".lt-solution")).toHaveCount(1);
 
@@ -219,4 +225,34 @@ test("re-submitting without new work adds no checkpoint, and a checkpoint can be
   await panel.getByRole("button", { name: "Remove solution 2" }).click();
   await expect(panel.locator(".lt-solution")).toHaveCount(1);
   await expect(panel.locator(".lt-solution")).toContainText("Accepted at");
+});
+
+test("one tap saves an Accepted solution with the suggested answers", async ({ context }) => {
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await page.click("#submit-ac");
+  const panel = page.getByRole("region", { name: "LeetTrack" });
+  const summary = panel.getByRole("region", { name: "Attempt summary" });
+  await expect(summary).toContainText("Solved alone");
+  await expect(summary).toContainText("Unsure");
+  await expect(summary).toContainText("Good");
+  await expect(summary).toContainText("Arrays & hashing");
+  await expect(panel.getByRole("radio", { name: /^Not solved/ })).toHaveCount(0); // form folded away
+  await panel.getByRole("button", { name: "Save attempt" }).click();
+  await expect(panel.getByText("Attempt saved.")).toBeVisible();
+  await panel.getByRole("tab", { name: "History (1)" }).click();
+  await expect(panel.locator(".lt-attempt")).toContainText("Solved alone");
+  await expect(panel.locator(".lt-chips-static .lt-chip")).toHaveText(["Arrays & hashing"]);
+});
+
+test("after opening the Editorial, the summary says solved with help", async ({ context }) => {
+  const page = await context.newPage();
+  await page.goto(PROBLEM);
+  await page.click("#editorial");
+  await page.click("#submit-ac");
+  const summary = page
+    .getByRole("region", { name: "LeetTrack" })
+    .getByRole("region", { name: "Attempt summary" });
+  await expect(summary).toContainText("With help · Read the key idea");
+  await expect(summary).toContainText("Hard"); // light help suggests Hard
 });

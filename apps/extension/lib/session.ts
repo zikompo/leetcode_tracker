@@ -10,6 +10,8 @@ export function mergeSessions(
   live: AttemptSession | null,
 ): AttemptSession | null {
   if (!stored || !live) return stored ?? live;
+  // The same session saved and read back: the in-memory copy is the newer one.
+  if (stored.startedAt === live.startedAt) return live;
   const offset = stored.activeSeconds;
   const seen = new Set(stored.submissionIds);
   const language = live.language ?? stored.language;

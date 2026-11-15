@@ -73,3 +73,13 @@ fieldset.field {
   margin: 2px 0;
   cursor: pointer;
 }
+.account-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-line img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}

@@ -1,0 +1,97 @@
+import { useEffect, useState } from "react";
+import { browser } from "wxt/browser";
+import type { SyncStatus } from "@/lib/account";
+import { formatAgo } from "@/lib/format";
+import { call } from "@/lib/messaging";
+
+/** Sign-in and sync state (spec 9.3). The website handles the actual GitHub sign-in. */
+export function AccountSettings() {
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const load = () =>
+      void call("getSyncStatus")
+        .then(setStatus)
+        .catch(() => {});
+    load();
+    // Signing in happens in another tab; pick it up when it lands.
+    const timer = setInterval(load, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const act = async (fn: () => Promise<SyncStatus>) => {
+    setBusy(true);
+    try {
+      setStatus(await fn());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!status) return null;
+  return (
+    <section className="card" aria-labelledby="account-heading">
+      <h2 id="account-heading">Account and sync</h2>
+      {!status.configured ? (
+        <p className="muted">
+          Accounts aren&apos;t set up in this build. LeetTrack keeps working offline; to sync with
+          the website, follow <code>docs/supabase-setup.md</code> and rebuild.
+        </p>
+      ) : !status.signedIn ? (
+        <>
+          <p className="muted">
+            Sign in to back up your attempts and see them on the LeetTrack website. Everything
+            you&apos;ve logged so far is uploaded when you sign in.
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() =>
+              void browser.tabs.create({
+                url: `${status.websiteUrl}/connect-extension?ext=${browser.runtime.id}`,
+              })
+            }
+          >
+            Sign in with GitHub
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="account-line">
+            {status.avatarUrl && <img src={status.avatarUrl} alt="" />}
+            <span>
+              Signed in as <strong>{status.userName ?? "you"}</strong>
+            </span>
+          </p>
+          <p className={status.lastError ? "bad" : "muted"} role="status">
+            {status.syncing
+              ? "Syncing…"
+              : status.lastError
+                ? `Last sync failed: ${status.lastError}`
+                : status.lastSyncAt
+                  ? `Synced ${formatAgo(status.lastSyncAt)}`
+                  : "Not synced yet"}
+          </p>
+          <div className="row">
+            <button
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={() => void act(() => call("syncNow"))}
+            >
+              Sync now
+            </button>
+            <button
+              className="btn"
+              onClick={() => void browser.tabs.create({ url: `${status.websiteUrl}/dashboard` })}
+            >
+              Open website
+            </button>
+            <button className="btn" disabled={busy} onClick={() => void act(() => call("signOut"))}>
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

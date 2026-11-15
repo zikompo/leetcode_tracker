@@ -145,6 +145,16 @@ export interface AttemptDraft {
   seenBefore?: boolean;
 }
 
+/** A user-made problem list (spec 12.1). Deleted lists stay as tombstones so deletes sync. */
+export interface CustomList {
+  id: string;
+  name: string;
+  /** Problem slugs, in the order to study them. */
+  slugs: string[];
+  deleted?: boolean;
+  updatedAt: string;
+}
+
 export type PanelAutoOpen = "accepted" | "every_submission" | "manual";
 
 /** A user-created pattern tag, alongside the built-in taxonomy. */

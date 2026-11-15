@@ -149,11 +149,13 @@ export class PageController {
     const prevSlug = this.state.loc?.slug;
     if (loc?.slug !== prevSlug) {
       await this.flush();
+      // Keep a session (and result) already started for this problem during start-up.
+      const sameProblem = !!loc && this.state.session?.slug === loc.slug;
       this.set({
         loc,
         problem: null,
-        session: null,
-        lastResult: null,
+        session: sameProblem ? this.state.session : null,
+        lastResult: sameProblem ? this.state.lastResult : null,
         error: null,
         formKey: this.state.formKey + 1,
       });
@@ -236,8 +238,16 @@ export class PageController {
     return this.state.session!;
   }
 
+  /**
+   * The problem on screen. Falls back to the URL during start-up, before the location is
+   * processed, so a submission that finishes very early is still recorded.
+   */
+  private currentSlug(): string | undefined {
+    return this.state.loc?.slug ?? parseProblemUrl(this.win.location.href)?.slug;
+  }
+
   private async onStarted(e: SubmissionStarted) {
-    if (e.slug !== this.state.loc?.slug) return;
+    if (e.slug !== this.currentSlug()) return;
     this.ensureSession(e.slug);
     this.updateSession({
       ...(e.lang ? { language: e.lang } : {}),
@@ -246,7 +256,7 @@ export class PageController {
   }
 
   private async onResult(r: SubmissionResult) {
-    const slug = this.state.loc?.slug;
+    const slug = this.currentSlug();
     if (!slug || (r.slug && r.slug !== slug)) return;
     const session = this.ensureSession(slug);
     if (r.submissionId && session.submissionIds.includes(r.submissionId)) return;

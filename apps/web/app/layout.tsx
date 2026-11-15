@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LeetTrack",
+  title: { default: "LeetTrack", template: "%s · LeetTrack" },
   description: "Track LeetCode attempts, reviews, and pattern mastery.",
 };
 

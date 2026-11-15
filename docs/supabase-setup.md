@@ -14,8 +14,8 @@ LeetTrack works without an account. Sign-in and sync need a Supabase project. Se
 ## 2. Create the tables
 
 1. Open **SQL Editor → New query**.
-2. Paste the whole of [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) and run it.
-3. **Table Editor** should now list `attempts`, `user_problems`, `settings` and `custom_lists`, each marked as protected by row-level security.
+2. Paste the whole of [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) and run it. Then do the same with [`0002_mocks.sql`](../supabase/migrations/0002_mocks.sql).
+3. **Table Editor** should now list `attempts`, `user_problems`, `settings`, `custom_lists` and `mock_interviews`, each marked as protected by row-level security.
 
 ## 3. Turn on GitHub sign-in
 
@@ -67,4 +67,25 @@ pnpm --filter @leettrack/extension build
 3. Sign in with GitHub. The page hands your session to the extension.
 4. The extension pushes everything you've already logged, and from then on syncs in the background.
 
-When you later deploy the website to a real domain, add that domain to the Site URL, the redirect URLs and the GitHub OAuth app. Set `WXT_WEBSITE_URL` to it as well.
+## 6. Deploy the website (Vercel)
+
+The repo deploys as one Vercel project whose **Root Directory** is `apps/web` (settings are in `apps/web/vercel.json`; `.vercelignore` keeps `.local/`, env files and build output out of uploads).
+
+1. Create the project with Root Directory `apps/web`, then link it from the repo root with `vercel link`.
+2. Add the production environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: the same as in `apps/web/.env.local`;
+   - `NEXT_PUBLIC_EXTENSION_IDS`: the extension's ID, `bpjaccjmefnfblponnmbnpkdmiegpcfo`, plus the Chrome Web Store ID once published.
+3. Deploy from the repo root:
+
+   ```bash
+   vercel deploy --prod
+   ```
+
+4. In Supabase, open **Authentication → URL Configuration**:
+   - set the **Site URL** to the production address;
+   - add `https://<your-domain>/auth/callback` to the **Redirect URLs**, keeping the localhost entry for development.
+5. Set `WXT_WEBSITE_URL` in `apps/extension/.env.local` to the production address and rebuild the extension. It accepts sign-ins from both the production site and `localhost:3000`.
+
+The GitHub OAuth app needs no change: its callback is Supabase's, not the website's.
+
+**Note on the extension ID:** builds now pin the extension's ID with a manifest key. If you loaded the unpacked extension before that, Chrome sees the pinned build as a new extension with empty local storage. Sign in again to pull your synced data back down, then reconnect GitHub and re-enter any AI key. Export your data first if anything wasn't synced.

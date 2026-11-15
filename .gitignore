@@ -15,3 +15,4 @@ next-env.d.ts
 
 # Personal data and keys kept out of git (tracker exports, extension private key)
 .local/
+.vercel

@@ -201,6 +201,9 @@ test("the dashboard shows pattern mastery, list progress and leeches", async ({
   await expect(row).toBeVisible();
   await expect(row.locator(".level")).not.toHaveText("Not started");
   await expect(row).toContainText("3/");
+  await row.getByRole("button", { name: "Arrays & hashing" }).click();
+  await expect(dash.getByText(/^Attempted \(\d+\)$/)).toBeVisible();
+  await expect(dash.getByText(/^Not started in your lists \(\d+\)$/)).toBeVisible();
 
   await dash.getByRole("tab", { name: "Lists" }).click();
   await expect(dash.locator(".list-card", { hasText: "NeetCode 150" })).toContainText(

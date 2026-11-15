@@ -150,6 +150,8 @@ export function demoData(now: Date = new Date()): DataSet {
         updatedAt: iso,
       };
       if (optimality) attempt.optimality = optimality;
+      if (outcome !== "not_solved")
+        attempt.secondsToApproach = Math.round(minutes * 60 * (0.25 + rand() * 0.5));
       if (optimality)
         attempt.complexityAchieved =
           optimality === "optimal" ? "O(n) time, O(n) space" : "O(n²) time, O(1) space";

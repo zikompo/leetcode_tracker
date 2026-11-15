@@ -75,7 +75,7 @@ test("problem detail: timeline, code diff and manual status", async ({ page }) =
   await expectNoPageOverflow(page);
 });
 
-test("patterns: level and the parts of the score", async ({ page }) => {
+test("patterns: level and the parts of the score; a card opens its problems", async ({ page }) => {
   await page.goto("/patterns");
   const first = page.locator("[data-slot=pattern]").first();
   await expect(first).toContainText("Retention");
@@ -83,8 +83,29 @@ test("patterns: level and the parts of the score", async ({ page }) => {
   await expect(first).toContainText("Coverage");
   const notStarted = page.getByRole("region", { name: "Not started" });
   await expect(notStarted.locator("[data-slot=chip]").first()).toBeVisible();
-  await expect(notStarted.getByRole("link")).toHaveCount(0); // no spoilers
+
+  const name = (await first.getByRole("heading").textContent())!.trim();
+  await first.getByRole("link", { name }).click();
+  await expect(page).toHaveURL(/\/patterns\/[a-z0-9-]+$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  const attempted = page.getByRole("region", { name: /^Problems you've attempted \(\d+\)$/ });
+  await expect(attempted.getByRole("link").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: /cold-solve rate by month/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open in Problems" })).toHaveAttribute(
+    "href",
+    /^\/problems\?pattern=/,
+  );
   await expectNoPageOverflow(page);
+});
+
+test("pattern page keeps unstarted problems hidden until asked", async ({ page }) => {
+  await page.goto("/patterns");
+  const chip = page.getByRole("region", { name: "Not started" }).getByRole("link").first();
+  await chip.click();
+  const unstarted = page.getByRole("region", { name: /^Not started yet \(\d+\)$/ });
+  await expect(unstarted.getByRole("link")).toHaveCount(0);
+  await unstarted.getByText("Show unstarted problems").click();
+  await expect(unstarted.getByRole("link", { name: /Solve/ }).first()).toBeVisible();
 });
 
 test("lists: seed and custom lists with progress", async ({ page }) => {

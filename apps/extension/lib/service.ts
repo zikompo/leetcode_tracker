@@ -19,6 +19,7 @@ import {
   confidenceGauge,
   countdowns,
   dashboardFrom,
+  patternDetail,
   problemStateFrom,
   queueFrom,
   statsFrom,
@@ -244,6 +245,7 @@ export function createService(
     getStats: async () => statsFrom(await snapshot()),
     getQueue: async () => queueFrom(await snapshot()),
     getDashboard: async () => dashboardFrom(await snapshot()),
+    getPatternDetail: async (id: string) => patternDetail(await snapshot(), id),
     getCountdowns: async () => countdowns(await snapshot()),
     getGauge: async () => confidenceGauge(await snapshot()),
 

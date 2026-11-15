@@ -6,6 +6,7 @@ import {
   clueJournal,
   confidenceGauge,
   countdowns,
+  patternDetail,
   queueFrom,
   targetsFrom,
 } from "../src";
@@ -217,5 +218,26 @@ describe("confidenceGauge", () => {
       ["Easy", 1, 0],
     ]);
     expect(g).toMatchObject({ reviewsToday: 2, newToday: 2, toDo: 4 });
+  });
+});
+
+describe("patternDetail", () => {
+  it("lists attempted problems, unstarted list problems and a trend for one pattern", () => {
+    const snap = snapshot({ activeLists: ["prep"] }, [
+      attempt("a", day(10), { secondsToApproach: 120 }),
+      attempt("c", day(12)),
+    ]);
+    const d = patternDetail(snap, "window");
+    expect(d.attempted.map((r) => r.slug)).toEqual(["c", "a"]);
+    expect(d.unstarted.map((p) => p.slug)).toEqual(["e"]);
+    expect(d.mastery?.attempted).toBe(2);
+    expect(d.trend).toHaveLength(6);
+    expect(d.trend.at(-1)).toMatchObject({
+      month: "2026-11",
+      attempts: 2,
+      medianApproachSeconds: 120,
+    });
+    expect(patternDetail(snap, "heap").attempted).toEqual([]);
+    expect(patternDetail(snap, "heap").unstarted.map((p) => p.slug)).toEqual(["b", "d"]);
   });
 });

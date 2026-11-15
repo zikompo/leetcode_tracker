@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   attemptQuality,
   computeMastery,
+  patternTrend,
   masteryInsights,
   resolvePatternIds,
   type CardState,
@@ -149,5 +150,54 @@ describe("attemptQuality and insights", () => {
   });
   it("resolves merged patterns", () => {
     expect(resolvePatternIds(["a", "b", "c"], { a: "b", c: "d", d: "e" })).toEqual(["b", "e"]);
+  });
+});
+
+describe("patternTrend", () => {
+  const NOW = new Date(2026, 10, 15, 12);
+  const at = (m: number, d: number) => new Date(2026, m, d, 12).toISOString();
+
+  it("gives six months of cumulative cold-solve and monthly median time-to-approach", () => {
+    const points = patternTrend(
+      [
+        makeAttempt({
+          endedAt: at(7, 3),
+          isCold: true,
+          outcome: "not_solved",
+          secondsToApproach: 900,
+        }),
+        makeAttempt({
+          endedAt: at(9, 2),
+          isCold: true,
+          outcome: "solved_independently",
+          secondsToApproach: 300,
+        }),
+        makeAttempt({
+          endedAt: at(9, 20),
+          isCold: false,
+          outcome: "solved_independently",
+          secondsToApproach: 100,
+        }),
+        makeAttempt({ endedAt: at(9, 25), isCold: true, outcome: "solved_independently" }),
+      ],
+      NOW,
+    );
+    expect(points.map((p) => p.month)).toEqual([
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+      "2026-11",
+    ]);
+    expect(points[0]).toEqual({ month: "2026-06", attempts: 0 });
+    // August: one cold miss, smoothed with the prior (0 + 2×0.5) / (1 + 2).
+    expect(points[2]!.coldSolve).toBeCloseTo(1 / 3);
+    expect(points[2]!.medianApproachSeconds).toBe(900);
+    // October: three cold attempts so far, two solved; median of 300 and 100.
+    expect(points[4]!.coldSolve).toBeCloseTo(3 / 5);
+    expect(points[4]!.medianApproachSeconds).toBe(200);
+    expect(points[4]!.attempts).toBe(3);
+    expect(points[5]).toMatchObject({ attempts: 0, coldSolve: points[4]!.coldSolve });
   });
 });

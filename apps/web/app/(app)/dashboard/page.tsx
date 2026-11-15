@@ -49,7 +49,7 @@ export default async function DashboardPage() {
         <ul className="flex flex-col gap-1.5">
           {dash.insights.weakest.map((m) => (
             <li key={m.pattern} className="flex items-center justify-between gap-2">
-              <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
+              <Link href={`/patterns/${m.pattern}`}>{name(m.pattern)}</Link>
               <span className="text-xs text-muted-foreground">mastery {pct(m.mastery)}</span>
             </li>
           ))}
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
         <ul className="flex flex-col gap-1.5">
           {dash.insights.retentionColdGap.map((m) => (
             <li key={m.pattern} className="flex items-center justify-between gap-2">
-              <Link href={`/patterns#${m.pattern}`}>{name(m.pattern)}</Link>
+              <Link href={`/patterns/${m.pattern}`}>{name(m.pattern)}</Link>
               <span className="text-xs text-muted-foreground">
                 retention {pct(m.retention)} · cold {pct(m.coldSolve)}
               </span>

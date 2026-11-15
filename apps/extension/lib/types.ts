@@ -11,6 +11,7 @@ import type {
   ConfidenceGauge,
   Countdown,
   Dashboard,
+  PatternDetail,
   ProblemState,
   Stats,
 } from "@leettrack/insights";
@@ -71,6 +72,8 @@ export interface Api {
   getQueue(): Queue;
   /** Pattern mastery, list progress and leeches for the dashboard. */
   getDashboard(): Dashboard;
+  /** One pattern's problems and trend, for the dashboard's expandable rows. */
+  getPatternDetail(id: string): PatternDetail;
   /** Upcoming interviews, soonest first. */
   getCountdowns(): Countdown[];
   /** Today's work and problems by last rating, for the gauge. */

@@ -2,12 +2,13 @@
 
 Chrome extension (MV3) and companion site for tracking LeetCode attempts, spaced-repetition reviews, and pattern mastery.
 
-Status: **M0–M4 are done.**
+Status: **M0–M5 are done.**
 
 - **M0 and M1:** the extension logs every attempt.
 - **M2:** spaced repetition (FSRS).
 - **M3:** patterns and mastery, and the seed lists.
 - **M4:** accounts, two-way sync, and the website.
+- **M5:** commit Accepted solutions to a GitHub repo.
 
 The extension still works fully offline; an account is optional.
 
@@ -37,7 +38,7 @@ pnpm test          # unit tests (all packages, including the database tests)
 pnpm typecheck
 ```
 
-To sign in and sync, create a Supabase project and follow [docs/supabase-setup.md](docs/supabase-setup.md). Without one, everything works locally and the website can run in demo mode.
+To sign in and sync, create a Supabase project and follow [docs/supabase-setup.md](docs/supabase-setup.md). Without one, everything works locally and the website can run in demo mode. To commit solutions to GitHub, see [docs/github-setup.md](docs/github-setup.md).
 
 ## Extension
 

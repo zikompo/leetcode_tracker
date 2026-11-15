@@ -104,5 +104,13 @@ export const settingsSchema = z.object({
   desiredRetention: z.number().min(0.7).max(0.97).default(0.9),
   activeLists: z.array(z.string()).default(["neetcode150"]),
   hideTopicsWhileSolving: z.boolean().default(false),
+  github: z
+    .object({
+      owner: z.string().min(1),
+      repo: z.string().min(1),
+      branch: z.string().min(1),
+      includeNotes: z.boolean().default(true),
+    })
+    .optional(),
   updatedAt: isoDate,
 });

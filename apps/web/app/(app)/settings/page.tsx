@@ -25,8 +25,32 @@ export default async function SettingsPage() {
           )}
         </p>
         <p className="muted small">
-          To connect the extension, open its settings and click Sign in. GitHub repository sync
-          arrives in a later version.
+          To connect the extension, open its settings and click Sign in.
+        </p>
+      </section>
+      <section className="card" aria-labelledby="github">
+        <h2 id="github">GitHub</h2>
+        {snap.settings.github ? (
+          <p style={{ margin: 0 }}>
+            The extension commits your Accepted solutions to{" "}
+            <a
+              href={`https://github.com/${snap.settings.github.owner}/${snap.settings.github.repo}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {snap.settings.github.owner}/{snap.settings.github.repo}
+            </a>{" "}
+            ({snap.settings.github.branch}), with notes{" "}
+            {snap.settings.github.includeNotes ? "included" : "left out"}.
+          </p>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>
+            Not set up. To commit each Accepted solution to a repo of yours, connect GitHub in the
+            extension&apos;s settings.
+          </p>
+        )}
+        <p className="muted small">
+          The GitHub sign-in stays in the extension; this site never sees it.
         </p>
       </section>
       <SettingsForms settings={snap.settings} />

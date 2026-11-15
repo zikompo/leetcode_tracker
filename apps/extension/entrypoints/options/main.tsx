@@ -4,6 +4,7 @@ import type { PanelAutoOpen, Settings } from "@leettrack/core";
 import { call } from "@/lib/messaging";
 import type { Stats } from "@/lib/types";
 import { AccountSettings } from "./AccountSettings";
+import { GitHubSettings } from "./GitHubSettings";
 import { AiSettings } from "./AiSettings";
 import { ReviewSettings } from "./ReviewSettings";
 import { browser } from "wxt/browser";
@@ -94,6 +95,8 @@ function Options() {
       <AccountSettings />
 
       {settings && <ReviewSettings settings={settings} onChange={setSettings} />}
+
+      <GitHubSettings />
 
       <AiSettings />
 

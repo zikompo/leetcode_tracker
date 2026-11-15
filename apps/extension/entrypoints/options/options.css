@@ -83,3 +83,30 @@ fieldset.field {
   height: 24px;
   border-radius: 50%;
 }
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.device-code {
+  margin: 0;
+  font:
+    600 26px/1.2 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.08em;
+}
+.repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.repo-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

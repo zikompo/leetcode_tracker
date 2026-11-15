@@ -11,6 +11,8 @@ import type { Dashboard, ProblemState, Stats } from "@leettrack/insights";
 import type { ProblemMetadata } from "../adapters/leetcode";
 import type { SyncStatus } from "./account";
 import type { AiStatus, AnalysisInput, ComplexitySuggestion } from "./ai";
+import type { RepoChoice } from "./github/api";
+import type { GitHubStatus } from "./github/service";
 
 /** A checkpoint while the attempt is open: also keeps the code and any model suggestion. */
 export interface SessionCheckpoint extends Checkpoint {
@@ -78,6 +80,17 @@ export interface Api {
   getSyncStatus(): SyncStatus;
   syncNow(): SyncStatus;
   signOut(): SyncStatus;
+  /** GitHub sync (spec 8): connection, repo choice, and the commit queue. */
+  githubStatus(): GitHubStatus;
+  githubStartConnect(): GitHubStatus;
+  githubPollConnect(): GitHubStatus & { interval?: number };
+  githubListRepos(): RepoChoice[];
+  githubSelectRepo(choice: { owner: string; repo: string; branch: string }): GitHubStatus;
+  githubSetIncludeNotes(includeNotes: boolean): GitHubStatus;
+  githubBackfillCount(): number;
+  githubBackfill(): number;
+  githubRetryNow(): number;
+  githubDisconnect(): GitHubStatus;
 }
 
 export type ApiMethod = keyof Api;

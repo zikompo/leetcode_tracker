@@ -155,6 +155,14 @@ export interface CustomList {
   updatedAt: string;
 }
 
+export interface GitHubTarget {
+  owner: string;
+  repo: string;
+  branch: string;
+  /** Put attempt notes in the problem README (spec 8.2: on by default). */
+  includeNotes: boolean;
+}
+
 export type PanelAutoOpen = "accepted" | "every_submission" | "manual";
 
 /** A user-created pattern tag, alongside the built-in taxonomy. */
@@ -180,6 +188,8 @@ export interface Settings {
   activeLists: string[];
   /** Hide LeetCode's topic tags while the attempt timer runs (spec 4.4). */
   hideTopicsWhileSolving: boolean;
+  /** Where solutions are committed (spec 8). The token itself never leaves the browser. */
+  github?: GitHubTarget;
   updatedAt: string;
 }
 

@@ -1,6 +1,8 @@
 import { browser } from "wxt/browser";
 import { ACCOUNT_ENV, createAccount, isHandoff } from "@/lib/account";
 import { createAiService } from "@/lib/ai";
+import { GITHUB_ENV, chromeGitHubStore, githubApi } from "@/lib/github/chrome";
+import { createGitHub } from "@/lib/github/service";
 import { chromeSessionStore, idbRepo } from "@/lib/db";
 import { createService } from "@/lib/service";
 import type { ApiMethod, ApiRequest, ApiResponse } from "@/lib/types";
@@ -22,12 +24,40 @@ const CHANGES_DATA: ReadonlySet<ApiMethod> = new Set<ApiMethod>([
 ]);
 const BADGE_ALARM = "leettrack-badge";
 const SYNC_ALARM = "leettrack-sync";
+const GITHUB_ALARM = "leettrack-github";
 const MIDNIGHT_ALARM = "leettrack-midnight";
 
 export default defineBackground(() => {
   const account = createAccount({ repo: idbRepo, onDataChanged: () => void refreshBadge() });
+  const data = createService(idbRepo, chromeSessionStore);
+  const github = createGitHub({
+    repo: idbRepo,
+    store: chromeGitHubStore,
+    api: githubApi(),
+    appSlug: GITHUB_ENV.appSlug,
+    getSettings: () => data.getSettings(),
+    setSettings: (patch) => data.setSettings(patch),
+  });
   const service = {
-    ...createService(idbRepo, chromeSessionStore),
+    ...data,
+    githubStatus: () => github.status(),
+    githubStartConnect: () => github.startConnect(),
+    githubPollConnect: () => github.pollConnect(),
+    githubListRepos: () => github.listRepos(),
+    githubSelectRepo: async (choice: { owner: string; repo: string; branch: string }) => {
+      const status = await github.selectRepo(choice);
+      account.syncSoon(); // the repo choice is part of the synced settings
+      return status;
+    },
+    githubSetIncludeNotes: (on: boolean) => github.setIncludeNotes(on),
+    githubBackfillCount: () => github.backfillCount(),
+    githubBackfill: async () => {
+      const n = await github.backfill();
+      void github.process();
+      return n;
+    },
+    githubRetryNow: () => github.retryNow(),
+    githubDisconnect: () => github.disconnect(),
     ...createAiService(),
     getSyncStatus: () => account.status(),
     syncNow: async () => {
@@ -58,11 +88,13 @@ export default defineBackground(() => {
 
   void browser.alarms.create(BADGE_ALARM, { periodInMinutes: 60 });
   void browser.alarms.create(SYNC_ALARM, { periodInMinutes: 15 });
+  void browser.alarms.create(GITHUB_ALARM, { periodInMinutes: 5 });
   scheduleMidnight();
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === MIDNIGHT_ALARM) scheduleMidnight();
     if (alarm.name === BADGE_ALARM || alarm.name === MIDNIGHT_ALARM) void refreshBadge();
     if (alarm.name === SYNC_ALARM) void account.sync();
+    if (alarm.name === GITHUB_ALARM) void github.process();
   });
   browser.runtime.onStartup.addListener(() => {
     void refreshBadge();
@@ -88,6 +120,18 @@ export default defineBackground(() => {
         sendResponse({ ok: true, value } satisfies ApiResponse);
         if (CHANGES_QUEUE.has(req.method as ApiMethod)) void refreshBadge();
         if (CHANGES_DATA.has(req.method as ApiMethod)) account.syncSoon();
+        // Commit to GitHub in the background; saving never waits on it (spec 8.2).
+        if (req.method === "saveAttempt") {
+          const id = (req.args?.[0] as { attempt?: { id?: string } } | undefined)?.attempt?.id;
+          if (id) {
+            void github
+              .onAttemptSaved(id)
+              .then(async (queued) => {
+                if (queued) await github.process();
+              })
+              .catch((err: unknown) => console.warn("[leettrack] github", err));
+          }
+        }
       },
       (err: unknown) =>
         sendResponse({

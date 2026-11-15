@@ -32,7 +32,7 @@ const BUILTIN_PATTERN_IDS: ReadonlySet<string> = new Set(PATTERNS.map((p) => p.i
 /** The data side of the API; complexity suggestions and sync live elsewhere. */
 type DataApi = Omit<
   Api,
-  "getAiStatus" | "analyzeComplexity" | "getSyncStatus" | "syncNow" | "signOut"
+  "getAiStatus" | "analyzeComplexity" | "getSyncStatus" | "syncNow" | "signOut" | `github${string}`
 >;
 type AsyncApi = {
   [K in keyof DataApi]: (...args: Parameters<DataApi[K]>) => Promise<ReturnType<DataApi[K]>>;

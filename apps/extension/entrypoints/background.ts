@@ -1,5 +1,5 @@
 import { browser } from "wxt/browser";
-import { ACCOUNT_ENV, createAccount, isHandoff } from "@/lib/account";
+import { createAccount } from "@/lib/account";
 import { createAiService } from "@/lib/ai";
 import { GITHUB_ENV, chromeGitHubStore, githubApi } from "@/lib/github/chrome";
 import { createGitHub } from "@/lib/github/service";
@@ -65,6 +65,7 @@ export default defineBackground(() => {
       return account.status();
     },
     signOut: () => account.signOut(),
+    signInWithGitHub: () => account.signInWithGitHub(),
   };
 
   /** Toolbar badge: reviews in today's queue (spec 4.6). */
@@ -179,22 +180,4 @@ export default defineBackground(() => {
 
   // Sign-in handoff from the website (spec 10.3). Chrome only delivers messages from the
   // origins in the manifest's externally_connectable; check the sender again anyway.
-  const websiteOrigin = new URL(ACCOUNT_ENV.websiteUrl).origin;
-  browser.runtime.onMessageExternal.addListener((message: unknown, sender, sendResponse) => {
-    const origin = sender.url ? new URL(sender.url).origin : sender.origin;
-    if (origin !== websiteOrigin || !isHandoff(message)) {
-      sendResponse({ ok: false, error: "Not accepted." });
-      return false;
-    }
-    account.signIn(message).then(
-      (status) =>
-        sendResponse({
-          ok: status.signedIn,
-          ...(status.signedIn ? {} : { error: "Sign-in failed." }),
-        }),
-      (err: unknown) =>
-        sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
-    );
-    return true;
-  });
 });

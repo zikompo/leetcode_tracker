@@ -1,5 +1,6 @@
 "use client";
 
+import { Term } from "@leettrack/ui/components/term";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import type { ReviewRow } from "@leettrack/insights";
@@ -125,7 +126,7 @@ export function ReviewTable({ rows }: { rows: Row[] }) {
               <TableHead className="font-medium text-muted-foreground">Problem</TableHead>
               <TableHead className="font-medium text-muted-foreground">Due</TableHead>
               <TableHead className="hidden font-medium text-muted-foreground md:table-cell">
-                Recall now
+                <Term k="recall">Recall now</Term>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -150,7 +151,11 @@ export function ReviewTable({ rows }: { rows: Row[] }) {
                       {r.title}
                     </Link>
                     {r.difficulty && <Difficulty value={r.difficulty} />}
-                    {r.isLeech && <Badge variant="destructive">leech</Badge>}
+                    {r.isLeech && (
+                      <Badge variant="destructive">
+                        <Term k="leech">leech</Term>
+                      </Badge>
+                    )}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -160,7 +165,11 @@ export function ReviewTable({ rows }: { rows: Row[] }) {
                     >
                       {r.dueLabel}
                     </span>
-                    {r.manual && <Badge variant="outline">moved</Badge>}
+                    {r.manual && (
+                      <Badge variant="outline">
+                        <Term k="moved">moved</Term>
+                      </Badge>
+                    )}
                     {r.forTarget && (
                       <Badge className="bg-warn/15 text-warn">before {r.forTarget}</Badge>
                     )}

@@ -77,7 +77,7 @@ Add one more screenshot yourself: the log panel on a real leetcode.com problem a
 | `sidePanel`                                 | Lets the log panel live in Chrome's side panel if you choose that.                                                               |
 | Host access to `https://leetcode.com/*`     | Shows the log panel on problem pages and notices your submissions' results.                                                      |
 | Optional hosts (`https://*/*`, `localhost`) | Asked for one origin at a time, only when you set up an AI provider or GitHub sync, so the extension can reach that one service. |
-| `externally_connectable` (the website)      | Lets the LeetTrack website hand the extension your sign-in session when you click Sign in.                                       |
+| `identity`                                  | Opens GitHub sign-in in a Chrome window and brings you back to the extension, so you can sync with the website.                  |
 
 **Remote code:** No. All code is in the package.
 

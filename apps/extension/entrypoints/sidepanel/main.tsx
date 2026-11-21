@@ -11,6 +11,7 @@ import { Today } from "@/components/TodayView";
 import { followSystemTheme } from "@/components/theme";
 import { loadPanelFonts } from "@/lib/fonts";
 import { call } from "@/lib/messaging";
+import { openWebsite } from "@/lib/website";
 import { App } from "../leetcode.content/App";
 import { connectRemotePanel } from "./remote";
 import "@/components/base.css";
@@ -114,9 +115,7 @@ function SidePanel() {
             size="icon-sm"
             aria-label="Dashboard"
             title="Dashboard"
-            onClick={() =>
-              void browser.tabs.create({ url: browser.runtime.getURL("/dashboard.html") })
-            }
+            onClick={() => openWebsite()}
           >
             <LayoutDashboard />
           </Button>

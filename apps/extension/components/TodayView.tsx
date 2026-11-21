@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import { browser } from "wxt/browser";
 import { AlarmClock } from "lucide-react";
 import type { Queue, QueueItem } from "@leettrack/core";
@@ -50,7 +51,7 @@ function QueueRow({ item, onSnooze }: { item: QueueItem; onSnooze?(days: number)
           )}
           {item.quickEligible && (
             <Badge variant="outline" className="text-[11px]">
-              quick
+              <Term k="quick">quick</Term>
             </Badge>
           )}
           {item.isLeech && (

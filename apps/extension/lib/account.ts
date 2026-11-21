@@ -26,22 +26,6 @@ export interface SyncStatus {
   lastError?: string;
 }
 
-/** What the website sends after GitHub sign-in (via externally_connectable). */
-export interface SessionHandoff {
-  type: "leettrack-session";
-  accessToken: string;
-  refreshToken: string;
-}
-
-export const isHandoff = (m: unknown): m is SessionHandoff => {
-  const x = m as Partial<SessionHandoff> | null;
-  return (
-    x?.type === "leettrack-session" &&
-    typeof x.accessToken === "string" &&
-    typeof x.refreshToken === "string"
-  );
-};
-
 const AUTH_KEY = "leettrack:auth";
 const SYNC_KEY = "leettrack:sync";
 
@@ -69,6 +53,10 @@ export function createAccount(deps: { repo: Repo; onDataChanged(): void }) {
         storage: authStorage,
         storageKey: AUTH_KEY,
         persistSession: true,
+        // The extension signs in on its own (PKCE through Chrome's sign-in window), so it has a
+        // session of its own. Sharing the website's would break: refresh tokens are single-use,
+        // and whichever side refreshed second would be signed out.
+        flowType: "pkce",
         // Service workers sleep, so timers are unreliable: the session refreshes on use.
         autoRefreshToken: false,
         detectSessionInUrl: false,
@@ -128,13 +116,39 @@ export function createAccount(deps: { repo: Repo; onDataChanged(): void }) {
       clearTimeout(timer);
       timer = setTimeout(() => void sync(), delayMs);
     },
-    async signIn(handoff: SessionHandoff): Promise<SyncStatus> {
+    /**
+     * Sign in with GitHub in Chrome's own sign-in window: GitHub (instant if you've approved
+     * before), then straight back here with a one-time code that becomes this browser's session.
+     */
+    async signInWithGitHub(): Promise<SyncStatus> {
       if (!ACCOUNT_CONFIGURED)
         throw new Error("This build of LeetTrack has no account server set up.");
-      const { error } = await supabase().auth.setSession({
-        access_token: handoff.accessToken,
-        refresh_token: handoff.refreshToken,
+      const redirectTo = browser.identity.getRedirectURL();
+      const { data, error: startError } = await supabase().auth.signInWithOAuth({
+        provider: "github",
+        options: { redirectTo, skipBrowserRedirect: true },
       });
+      if (startError || !data.url)
+        throw new Error(`Couldn't start sign-in: ${startError?.message ?? "no sign-in page"}`);
+      let returned: string | undefined;
+      try {
+        returned = await browser.identity.launchWebAuthFlow({ url: data.url, interactive: true });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          /cancel|closed|did not approve/i.test(msg)
+            ? "Sign-in was cancelled."
+            : `Sign-in failed: ${msg}`,
+        );
+      }
+      const back = new URL(returned ?? redirectTo);
+      const params = new URLSearchParams(back.search || back.hash.slice(1));
+      const code = params.get("code");
+      if (!code)
+        throw new Error(
+          `Sign-in failed: ${params.get("error_description") ?? params.get("error") ?? "no code came back"}`,
+        );
+      const { error } = await supabase().auth.exchangeCodeForSession(code);
       if (error) throw new Error(`Sign-in failed: ${error.message}`);
       // A fresh start: push everything here, pull everything there.
       await syncState.set({});

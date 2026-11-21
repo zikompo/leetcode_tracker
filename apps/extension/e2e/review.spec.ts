@@ -184,41 +184,28 @@ test("LeetCode's topic tags hide while the timer runs, when enabled", async ({
   await expect(page.locator("#topic-array")).toBeVisible();
 });
 
-test("the dashboard shows pattern mastery, list progress and leeches", async ({
+test("Dashboard opens the website, and pattern tags are managed in Settings", async ({
   context,
   extensionId,
-}, testInfo) => {
-  const leech = ["2026-01-01", "2026-01-03", "2026-01-06"].map((d) =>
-    makeAttempt("valid-anagram", `${d}T12:00:00.000Z`, {
-      outcome: "not_solved",
-      rating: 1,
-      stuckNote: `stuck ${d}`,
-    }),
+}) => {
+  await context.route("http://localhost:3000/**", (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "<h1>LeetTrack website</h1>" }),
   );
-  await importAttempts(
-    context,
-    extensionId,
-    [...reviewHistory(), ...leech],
-    testInfo.outputPath("export.json"),
-  );
-  const dash = await context.newPage();
-  await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
-  const row = dash.locator("tr", { hasText: "Arrays & hashing" });
-  await expect(row).toBeVisible();
-  await expect(row.locator(".level")).not.toHaveText("Not started");
-  await expect(row).toContainText("3/");
-  await row.getByRole("button", { name: "Arrays & hashing" }).click();
-  await expect(dash.getByText(/^Attempted \(\d+\)$/)).toBeVisible();
-  await expect(dash.getByText(/^Not started in your lists \(\d+\)$/)).toBeVisible();
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole("button", { name: "Dashboard" }).click();
+  await expect
+    .poll(() => context.pages().map((p) => p.url()))
+    .toContain("http://localhost:3000/dashboard");
 
-  await dash.getByRole("tab", { name: "Lists" }).click();
-  await expect(dash.locator(".list-card", { hasText: "NeetCode 150" })).toContainText(
-    "3 of 150 started",
-  );
-
-  await dash.getByRole("tab", { name: "Leeches (1)" }).click();
-  await expect(dash.getByText("Valid Anagram")).toBeVisible();
-  await expect(dash.locator(".stuck li")).toHaveCount(3);
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  const tags = options.getByRole("region", { name: "Pattern tags" });
+  await tags.getByLabel("Pattern to rename").selectOption({ label: "Arrays & hashing" });
+  await tags.getByLabel("New name").fill("Hashing");
+  await tags.getByRole("button", { name: "Rename" }).click();
+  await expect(tags).toContainText("Renamed.");
+  await expect(tags.getByLabel("Pattern to rename")).toContainText("Hashing");
 });
 
 test("a twist prompt follows a review of a problem you know well", async ({

@@ -262,6 +262,9 @@ test("review queue: select reviews and snooze or move them", async ({ page }) =>
   const rows = page.locator("tbody tr");
   await expect(rows).not.toHaveCount(0);
   await expect(page.locator("tbody").getByText("moved")).toBeVisible();
+  // Terms explain themselves on hover, keyboard focus or a tap.
+  await page.locator("tbody").getByText("moved").click();
+  await expect(page.getByRole("tooltip")).toContainText("set by hand");
   const toolbar = page.getByRole("toolbar", { name: "Change selected reviews" });
   await expect(toolbar.getByRole("button", { name: "3 days" })).toBeDisabled();
   await page.getByRole("checkbox", { name: "Select all reviews" }).click();

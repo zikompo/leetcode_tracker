@@ -1,5 +1,6 @@
 "use client";
 
+import { Term } from "#components/term";
 import * as React from "react";
 import { cn } from "#lib/utils";
 
@@ -86,9 +87,16 @@ export function ConfidenceGauge({
     .map((b) => `${b.label} ${b.count}${b.dueToday ? ` (${b.dueToday} due)` : ""}`)
     .join(", ")}.`;
 
+  const breakdown = (reviewsToday > 0 || newToday > 0) && (
+    <span className={cn("text-[11px] text-muted-foreground", compact ? "-mt-3" : "mt-1")}>
+      {reviewsToday} review{reviewsToday === 1 ? "" : "s"}
+      {newToday > 0 && ` · ${newToday} new`}
+    </span>
+  );
+
   return (
     <div
-      className={cn("flex items-center gap-6", compact && "gap-0", className)}
+      className={cn("flex items-center gap-6", compact && "flex-col gap-0", className)}
       data-slot="confidence-gauge"
     >
       <div className={cn("relative shrink-0", compact ? "size-32" : "size-44")}>
@@ -156,22 +164,21 @@ export function ConfidenceGauge({
               <span className={cn("font-semibold tabular-nums", compact ? "text-3xl" : "text-5xl")}>
                 {toDo}
               </span>
-              <span className="text-xs text-muted-foreground">to do today</span>
-              {(reviewsToday > 0 || newToday > 0) && (
-                <span className="mt-1 text-[11px] text-muted-foreground">
-                  {reviewsToday} review{reviewsToday === 1 ? "" : "s"}
-                  {newToday > 0 && ` · ${newToday} new`}
-                </span>
-              )}
+              <span className="pointer-events-auto text-xs text-muted-foreground">
+                <Term k="toDo">to do today</Term>
+              </span>
+              {/* The compact gauge is too narrow for this line inside the arc: it goes below. */}
+              {!compact && breakdown}
             </>
           )}
         </div>
       </div>
+      {compact && !focus && breakdown}
 
       {!compact && (
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className="text-xs text-muted-foreground">
-            {plural(tracked, "problem")} by last rating
+            {plural(tracked, "problem")} by <Term k="lastRating">last rating</Term>
           </span>
           <ul className="flex flex-col gap-1.5" aria-label="Last ratings">
             {bands.map((b) => (

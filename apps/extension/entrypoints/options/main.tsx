@@ -8,11 +8,12 @@ import { GitHubSettings } from "./GitHubSettings";
 import { AiSettings } from "./AiSettings";
 import { DataSettings } from "./DataSettings";
 import { PanelSettings } from "./PanelSettings";
+import { PatternSettings } from "./PatternSettings";
 import { InterviewSettings } from "./InterviewSettings";
 import { ReviewSettings } from "./ReviewSettings";
-import { browser } from "wxt/browser";
 import { Logo } from "@/components/Logo";
 import { ACCOUNT_ENV } from "@/lib/account";
+import { openWebsite } from "@/lib/website";
 import { followSystemTheme } from "@/components/theme";
 import "@/components/base.css";
 import "./options.css";
@@ -37,12 +38,7 @@ function Options() {
         <h1>
           <Logo className="size-7" /> LeetTrack settings
         </h1>
-        <button
-          className="btn"
-          onClick={() =>
-            void browser.tabs.create({ url: browser.runtime.getURL("/dashboard.html") })
-          }
-        >
+        <button className="btn" onClick={() => openWebsite()}>
           Open dashboard
         </button>
       </header>
@@ -53,6 +49,7 @@ function Options() {
 
       {settings && <ReviewSettings settings={settings} onChange={setSettings} />}
       {settings && <InterviewSettings settings={settings} onChange={setSettings} />}
+      {settings && <PatternSettings settings={settings} onDone={() => void refresh()} />}
 
       <GitHubSettings />
 

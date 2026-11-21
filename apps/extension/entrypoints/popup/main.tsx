@@ -14,6 +14,7 @@ import { followSystemTheme } from "@/components/theme";
 import type { SyncStatus } from "@/lib/account";
 import { formatAgo, formatDue } from "@/lib/format";
 import { call } from "@/lib/messaging";
+import { openWebsite } from "@/lib/website";
 import type { ProblemState, Stats, TabMessage } from "@/lib/types";
 import "@/components/base.css";
 
@@ -21,8 +22,7 @@ followSystemTheme();
 
 type Tab = "today" | "problem" | "stats";
 
-const openDashboard = () =>
-  void browser.tabs.create({ url: browser.runtime.getURL("/dashboard.html") });
+const openDashboard = () => openWebsite();
 
 function Popup() {
   const [tabId, setTabId] = useState<number>();

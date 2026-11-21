@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import { notFound } from "next/navigation";
 import {
   RATING_LABELS,
@@ -108,8 +109,9 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
                 )}
               </p>
               <p className="text-xs text-muted-foreground">
-                Recall now about {pct(card.retrievability)} · memory stable for ~
-                {Math.round(card.stabilityDays)} days · {card.reps} reviews, {card.lapses} lapses
+                <Term k="recall">Recall now</Term> about {pct(card.retrievability)} ·{" "}
+                <Term k="stability">memory stable</Term> for ~{Math.round(card.stabilityDays)} days
+                · {card.reps} reviews, {card.lapses} lapses
               </p>
             </div>
           ) : (

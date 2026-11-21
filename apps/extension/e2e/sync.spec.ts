@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from "@leettrack/core";
 import type { BrowserContext } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { FAKE_USER, fakeAccessToken, fakeSupabase } from "./fake-supabase";
+import { FAKE_USER, fakeSupabase } from "./fake-supabase";
 
 test.describe.configure({ mode: "serial" });
 
@@ -12,29 +12,18 @@ test.beforeEach(() => {
   for (const t of Object.values(server.tables)) t.clear();
 });
 
-/**
- * Stands in for the website's /connect-extension page after GitHub sign-in: it hands the
- * session to the extension exactly as the real page does.
- */
-const HANDOFF_PAGE = `<!doctype html><html><body><p id="out">sending</p><script>
-  const q = new URLSearchParams(location.search);
-  chrome.runtime.sendMessage(q.get("ext"), {
-    type: "leettrack-session", accessToken: q.get("token"), refreshToken: "refresh-1",
-  }, (r) => { document.getElementById("out").textContent = r && r.ok ? "connected" : "failed: " + JSON.stringify(r); });
-</script></body></html>`;
-
+/** Sign in from the extension's settings: Chrome's sign-in window, then straight back. */
 async function signIn(context: BrowserContext, extensionId: string) {
-  await context.route("http://localhost:3000/**", (route) =>
-    route.fulfill({ status: 200, contentType: "text/html", body: HANDOFF_PAGE }),
-  );
-  const site = await context.newPage();
-  await site.goto(
-    `http://localhost:3000/connect-extension?ext=${extensionId}&token=${fakeAccessToken()}`,
-  );
-  await expect(site.locator("#out")).toHaveText("connected");
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.getByRole("button", { name: "Sign in with GitHub" }).click();
+  await expect(options.getByText(`Signed in as ${FAKE_USER.user_metadata.user_name}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await options.close();
 }
 
-test("signing in on the website connects the extension and uploads what was logged offline", async ({
+test("signing in with GitHub from the extension uploads what was logged offline", async ({
   context,
   extensionId,
 }) => {

@@ -22,9 +22,6 @@ test("capture extension pages", async ({ context, extensionId }) => {
     await p.waitForTimeout(400);
     await p.screenshot({ path: `${dir}/ext-popup-${scheme}.png` });
     await p.setViewportSize({ width: 1200, height: 800 });
-    await p.goto(`chrome-extension://${extensionId}/dashboard.html`);
-    await p.waitForTimeout(400);
-    await p.screenshot({ path: `${dir}/ext-dashboard-${scheme}.png` });
     await p.goto(`chrome-extension://${extensionId}/options.html`);
     await p.waitForTimeout(400);
     await p.screenshot({ path: `${dir}/ext-options-${scheme}.png`, fullPage: true });
@@ -142,7 +139,6 @@ test("capture store assets", async ({ context, extensionId }, testInfo) => {
     await p.screenshot({ path: `${dir}/${name}.png` });
     await p.close();
   };
-  await shot(`chrome-extension://${extensionId}/dashboard.html`, "screenshot-dashboard");
   await shot(`chrome-extension://${extensionId}/onboarding.html`, "screenshot-onboarding");
 
   const tile = await context.newPage();

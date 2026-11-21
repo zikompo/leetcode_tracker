@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import type { QueueItem } from "@leettrack/core";
@@ -36,7 +37,11 @@ export function QueueList({ items }: { items: QueueItem[] }) {
                 before {i.forTarget.label}
               </Badge>
             )}
-            {i.isLeech && <Badge variant="destructive">leech</Badge>}
+            {i.isLeech && (
+              <Badge variant="destructive">
+                <Term k="leech">leech</Term>
+              </Badge>
+            )}
             <a
               className="inline-flex items-center gap-1 text-xs"
               href={leetcodeUrl(i.slug)}

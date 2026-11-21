@@ -2,7 +2,7 @@
 
 Chrome extension (MV3) and companion site for tracking LeetCode attempts, spaced-repetition reviews, and pattern mastery.
 
-Status: **M0–M7 are done.** The website runs at https://leettrack-xi.vercel.app.
+Status: **M0–M7 are done.** The website runs at https://leetcode.zikorachinedu.com.
 
 - **M0 and M1:** the extension logs every attempt.
 - **M2:** spaced repetition (FSRS).

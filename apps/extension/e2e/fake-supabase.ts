@@ -67,6 +67,26 @@ export function fakeSupabase() {
       res.end(JSON.stringify(payload));
     };
 
+    // GitHub sign-in (PKCE): "GitHub" approves at once and sends a one-time code back.
+    if (url.pathname === "/auth/v1/authorize") {
+      const back = new URL(url.searchParams.get("redirect_to") ?? "");
+      back.searchParams.set("code", "fake-auth-code");
+      res.writeHead(302, { location: back.toString() });
+      return res.end();
+    }
+    if (url.pathname === "/auth/v1/token" && req.method === "POST") {
+      const { auth_code } = JSON.parse(await body(req)) as { auth_code?: string };
+      if (url.searchParams.get("grant_type") === "pkce" && auth_code !== "fake-auth-code")
+        return json(400, { error: "invalid_grant", error_description: "Bad code" });
+      return json(200, {
+        access_token: fakeAccessToken(),
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        refresh_token: `refresh-${Date.now()}`,
+        user: FAKE_USER,
+      });
+    }
     if (url.pathname === "/auth/v1/user") return json(200, FAKE_USER);
     if (url.pathname === "/auth/v1/logout") return res.writeHead(204).end();
 

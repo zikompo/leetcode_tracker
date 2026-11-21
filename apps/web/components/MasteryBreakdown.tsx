@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import type { PatternMastery } from "@leettrack/core";
 import { pct } from "@/lib/util";
 
@@ -5,13 +6,19 @@ import { pct } from "@/lib/util";
 export function MasteryBreakdown({ m }: { m: PatternMastery }) {
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
-      <dt className="text-muted-foreground">Retention</dt>
+      <dt className="text-muted-foreground">
+        <Term k="retention">Retention</Term>
+      </dt>
       <dd>{pct(m.retention)} · how well you&apos;d recall what you&apos;ve solved</dd>
-      <dt className="text-muted-foreground">Cold-solve</dt>
+      <dt className="text-muted-foreground">
+        <Term k="coldSolve">Cold-solve</Term>
+      </dt>
       <dd>
         {pct(m.coldSolve)} · {m.coldSolved} of {m.coldAttempts} first attempts solved alone
       </dd>
-      <dt className="text-muted-foreground">Coverage</dt>
+      <dt className="text-muted-foreground">
+        <Term k="coverage">Coverage</Term>
+      </dt>
       <dd>
         {m.coverage === undefined
           ? "not in your active lists"

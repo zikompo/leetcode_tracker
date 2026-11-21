@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import Link from "next/link";
 import { dateKey, fromDateKey, type PlanDay } from "@leettrack/core";
 import {
@@ -146,8 +147,14 @@ function Target({
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat value={`${view.started}/${view.total}`} label="problems started" />
         <Stat value={view.total - view.started} label="left to start" />
-        <Stat value={view.extraReviews} label="extra reviews before the day" />
-        <Stat value={<PaceBadge ahead={pace.ahead} />} label="against a steady pace" />
+        <Stat
+          value={view.extraReviews}
+          label={<Term k="extraReview">extra reviews before the day</Term>}
+        />
+        <Stat
+          value={<PaceBadge ahead={pace.ahead} />}
+          label={<Term k="steadyPace">against a steady pace</Term>}
+        />
       </div>
 
       {view.total - view.started === 0 ? (

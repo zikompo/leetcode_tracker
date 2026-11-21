@@ -1,3 +1,4 @@
+import { Term } from "@leettrack/ui/components/term";
 import Link from "next/link";
 import {
   activity,
@@ -61,7 +62,7 @@ export default async function DashboardPage() {
     </Panel>
   );
   const coldGap = (
-    <Panel title="Can re-solve, hard to spot fresh">
+    <Panel title={<Term k="coldGap">Can re-solve, hard to spot fresh</Term>} id="panel-cold-gap">
       {dash.insights.retentionColdGap.length === 0 ? (
         <p className="text-muted-foreground">
           No patterns where you remember solutions but miss them cold.
@@ -174,11 +175,11 @@ export default async function DashboardPage() {
           >
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               <Stat value={reviews.length} label="reviews due today" />
-              <Stat value={act.streak} label="day streak" />
+              <Stat value={act.streak} label={<Term k="streak">day streak</Term>} />
               <Stat value={stats.problemsAttempted} label="problems attempted" />
               <Stat value={stats.fullySolved} label="fully solved" />
               <Stat value={stats.attempts} label="attempts logged" />
-              <Stat value={stats.leeches} label="leeches" />
+              <Stat value={stats.leeches} label={<Term k="leech">leeches</Term>} />
             </div>
           </Panel>
         </div>
@@ -256,7 +257,7 @@ export default async function DashboardPage() {
             {coldGap}
           </div>
         )}
-        <Panel className="max-lg:order-3" title="Leeches">
+        <Panel className="max-lg:order-3" title={<Term k="leech">Leeches</Term>} id="panel-leeches">
           {dash.leeches.length === 0 ? (
             <p className="text-muted-foreground">None. A problem becomes one after three Agains.</p>
           ) : (

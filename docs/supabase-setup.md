@@ -27,7 +27,7 @@ LeetTrack works without an account. Sign-in and sync need a Supabase project. Se
 3. In Supabase, open **Authentication → Sign In / Providers → GitHub**, turn it on, paste the client ID and secret, and save.
 4. In Supabase, open **Authentication → URL Configuration**:
    - **Site URL:** `http://localhost:3000`
-   - **Redirect URLs:** add `http://localhost:3000/auth/callback`
+   - **Redirect URLs:** add `http://localhost:3000/auth/callback`, and `https://<extension-id>.chromiumapp.org/**` for each extension ID you use (the development ID `bpjaccjmefnfblponnmbnpkdmiegpcfo`, and the store ID once you have one). The extension signs in through `chrome.identity`, which comes back to that address.
 
 ## 4. Point the apps at your project
 
@@ -84,7 +84,7 @@ The repo deploys as one Vercel project whose **Root Directory** is `apps/web` (s
 4. In Supabase, open **Authentication → URL Configuration**:
    - set the **Site URL** to the production address;
    - add `https://<your-domain>/auth/callback` to the **Redirect URLs**, keeping the localhost entry for development.
-5. Set `WXT_WEBSITE_URL` in `apps/extension/.env.local` to the production address and rebuild the extension. It accepts sign-ins from both the production site and `localhost:3000`.
+5. Set `WXT_WEBSITE_URL` in `apps/extension/.env.local` to the production address and rebuild the extension. Its **Dashboard** buttons open that site.
 
 The GitHub OAuth app needs no change: its callback is Supabase's, not the website's.
 

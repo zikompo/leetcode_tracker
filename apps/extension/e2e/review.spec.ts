@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 import { replayCard, type Attempt } from "@leettrack/core";
 import type { BrowserContext, Page } from "@playwright/test";
@@ -188,15 +189,23 @@ test("Dashboard opens the website, and pattern tags are managed in Settings", as
   context,
   extensionId,
 }) => {
-  await context.route("http://localhost:3000/**", (route) =>
-    route.fulfill({ status: 200, contentType: "text/html", body: "<h1>LeetTrack website</h1>" }),
-  );
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole("button", { name: "Dashboard" }).click();
-  await expect
-    .poll(() => context.pages().map((p) => p.url()))
-    .toContain("http://localhost:3000/dashboard");
+  // A stand-in website, so the new tab loads (CI runs no website); a dev server already on
+  // the port does just as well.
+  const site = createServer((_, res) => res.end("<h1>LeetTrack website</h1>"));
+  await new Promise<void>((resolve) => {
+    site.once("error", () => resolve());
+    site.listen(3000, "localhost", () => resolve());
+  });
+  try {
+    await popup.getByRole("button", { name: "Dashboard" }).click();
+    await expect
+      .poll(() => context.pages().map((p) => p.url()))
+      .toContain("http://localhost:3000/dashboard");
+  } finally {
+    site.close();
+  }
 
   const options = await context.newPage();
   await options.goto(`chrome-extension://${extensionId}/options.html`);

@@ -5,7 +5,7 @@ import { LayoutDashboard, Settings } from "lucide-react";
 import type { Queue } from "@leettrack/core";
 import type { ConfidenceGauge as GaugeData } from "@leettrack/insights";
 import { Button } from "@leettrack/ui/components/button";
-import { parseProblemUrl } from "@/adapters/leetcode";
+import { parsePageLocation } from "@/adapters/sites";
 import { Logo } from "@/components/Logo";
 import { Today } from "@/components/TodayView";
 import { followSystemTheme } from "@/components/theme";
@@ -101,7 +101,7 @@ function TodayHere() {
 
 function SidePanel() {
   const tab = useFollowedTab();
-  const slug = tab ? parseProblemUrl(tab.url)?.slug : undefined;
+  const slug = tab ? parsePageLocation(tab.url)?.slug : undefined;
   const remote = useRemotePanel(tab?.id, slug);
   return (
     <main className="flex h-dvh flex-col">

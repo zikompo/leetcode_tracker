@@ -6,7 +6,9 @@ import {
   SEED_PROBLEMS,
   TOPIC_TO_PATTERN,
   listProblems,
+  neetcodeUrl,
   patternsFromTopics,
+  seedForNeetcodeSlug,
 } from "../src";
 
 describe("seed lists", () => {
@@ -44,5 +46,19 @@ describe("seed lists", () => {
       "arrays-hashing",
       "sliding-window-variable",
     ]);
+  });
+});
+
+describe("NeetCode slugs", () => {
+  it("map neetcode.io's problem slugs to LeetCode's and back", () => {
+    expect(seedForNeetcodeSlug("two-integer-sum")?.slug).toBe("two-sum");
+    expect(seedForNeetcodeSlug("duplicate-integer")?.slug).toBe("contains-duplicate");
+    expect(seedForNeetcodeSlug("two-sum")).toBeUndefined();
+    expect(neetcodeUrl("two-sum")).toBe("https://neetcode.io/problems/two-integer-sum/question");
+    expect(neetcodeUrl("not-a-seed-problem")).toBeUndefined();
+    // Every problem has one, and no two share it.
+    const slugs = SEED_PROBLEMS.map((p) => p.neetcodeSlug);
+    expect(slugs.every(Boolean)).toBe(true);
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 });

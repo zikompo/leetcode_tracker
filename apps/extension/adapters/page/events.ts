@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Normalized events the adapter emits. These shapes are the adapter's public contract:
- * nothing outside `adapters/leetcode/` sees raw LeetCode payloads.
+ * nothing outside the site adapters sees a site's raw payloads.
  */
 export const submissionStartedSchema = z.object({
   type: z.literal("submission-started"),

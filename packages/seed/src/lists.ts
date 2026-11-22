@@ -24,6 +24,8 @@ export interface SeedProblem {
   lists: ListId[];
   /** Taxonomy ids. Hidden from the user until they've logged an attempt (spec 4.4). */
   suggestedPatterns: string[];
+  /** The problem's slug on neetcode.io, which often differs from LeetCode's (two-integer-sum). */
+  neetcodeSlug: string;
 }
 
 /** First-guess pattern for each NeetCode category. */
@@ -162,7 +164,7 @@ const LIST_FLAGS: Record<string, ListId> = { B: "blind75", N: "neetcode150", F: 
 
 /** All seed problems in NeetCode's roadmap order. */
 export const SEED_PROBLEMS: readonly SeedProblem[] = NEETCODE_ROWS.map(
-  ([slug, frontendId, title, difficulty, category, flags]) => ({
+  ([slug, frontendId, title, difficulty, category, flags, neetcodeSlug]) => ({
     slug,
     frontendId,
     title,
@@ -170,12 +172,27 @@ export const SEED_PROBLEMS: readonly SeedProblem[] = NEETCODE_ROWS.map(
     category,
     lists: [...flags].map((f) => LIST_FLAGS[f]!),
     suggestedPatterns: OVERRIDES[slug] ?? CATEGORY_PATTERNS[category] ?? [],
+    neetcodeSlug: neetcodeSlug || slug,
   }),
 );
 
 export const SEED_BY_SLUG: ReadonlyMap<string, SeedProblem> = new Map(
   SEED_PROBLEMS.map((p) => [p.slug, p]),
 );
+
+const BY_NEETCODE_SLUG: ReadonlyMap<string, SeedProblem> = new Map(
+  SEED_PROBLEMS.map((p) => [p.neetcodeSlug, p]),
+);
+
+/** The seed problem a neetcode.io slug stands for, if it's one of NeetCode's lists. */
+export const seedForNeetcodeSlug = (neetcodeSlug: string): SeedProblem | undefined =>
+  BY_NEETCODE_SLUG.get(neetcodeSlug);
+
+/** A LeetCode problem's page on neetcode.io, when NeetCode has it in its lists. */
+export function neetcodeUrl(leetcodeSlug: string): string | undefined {
+  const seed = SEED_BY_SLUG.get(leetcodeSlug);
+  return seed ? `https://neetcode.io/problems/${seed.neetcodeSlug}/question` : undefined;
+}
 
 /** A list's problems, in roadmap order. */
 export function listProblems(id: string): SeedProblem[] {

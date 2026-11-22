@@ -1,0 +1,7 @@
+{
+  "data": {
+    "problemId": "two-integer-sum",
+    "rawCode": "class Solution:\n    def twoSum(self, nums, target):\n        seen = {}\n        for i, n in enumerate(nums):\n            if target - n in seen:\n                return [seen[target - n], i]\n            seen[n] = i\n",
+    "lang": "python"
+  }
+}

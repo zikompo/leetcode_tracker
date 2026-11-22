@@ -7,7 +7,7 @@ import type { ConfidenceGauge as GaugeData, Countdown } from "@leettrack/insight
 import { Button } from "@leettrack/ui/components/button";
 import { Stat } from "@leettrack/ui/components/panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@leettrack/ui/components/tabs";
-import { parseProblemUrl } from "@/adapters/leetcode";
+import { parsePageLocation } from "@/adapters/sites";
 import { Logo } from "@/components/Logo";
 import { Today } from "@/components/TodayView";
 import { followSystemTheme } from "@/components/theme";
@@ -38,7 +38,7 @@ function Popup() {
   useEffect(() => {
     (async () => {
       const [current] = await browser.tabs.query({ active: true, currentWindow: true });
-      const loc = current?.url ? parseProblemUrl(current.url) : null;
+      const loc = current?.url ? parsePageLocation(current.url) : null;
       if (current?.id !== undefined && loc) {
         setTabId(current.id);
         setTab("problem");

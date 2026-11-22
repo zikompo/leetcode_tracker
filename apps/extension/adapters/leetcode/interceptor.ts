@@ -1,5 +1,6 @@
-import { CONTENT_SOURCE, PAGE_SOURCE } from "./constants";
-import type { ContentRequest, PageEnvelope, PageEvent } from "./events";
+import { CONTENT_SOURCE, PAGE_SOURCE } from "../page/constants";
+import type { ContentRequest, PageEnvelope, PageEvent } from "../page/events";
+import { watchRequests } from "../page/network";
 import { readEditorCode } from "./editor";
 import {
   matchCheckUrl,
@@ -9,7 +10,7 @@ import {
   parseSubmitResponse,
 } from "./parse";
 
-// Runs in the page's MAIN world. Wraps fetch + XMLHttpRequest to observe the user's own
+// Runs in the page's MAIN world. Watches fetch + XMLHttpRequest for the user's own
 // submissions, and posts normalized events to the isolated content script.
 
 export interface InterceptorOptions {
@@ -66,86 +67,7 @@ export function installInterceptor(win: Window & typeof globalThis, opts: Interc
     if (id) onCheck(id, url, responseBody);
   };
 
-  const isInteresting = (url: string) =>
-    matchSubmitUrl(url) !== null || matchCheckUrl(url) !== null;
-  const safeJson = (text: string): unknown => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      return undefined;
-    }
-  };
-
-  // --- fetch ---
-  const originalFetch = win.fetch;
-  win.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const interesting = isInteresting(url);
-    const method = (
-      init?.method ?? (input instanceof Request ? input.method : "GET")
-    ).toUpperCase();
-    let requestBodyPromise: Promise<unknown> | undefined;
-    if (interesting && method === "POST") {
-      if (init?.body !== undefined) requestBodyPromise = Promise.resolve(init.body);
-      else if (input instanceof Request)
-        requestBodyPromise = input
-          .clone()
-          .text()
-          .catch(() => undefined);
-    }
-    const response = await originalFetch.call(win, input, init);
-    if (interesting) {
-      const copy = response.clone();
-      void (async () => {
-        try {
-          const [reqBody, text] = await Promise.all([requestBodyPromise, copy.text()]);
-          handle(url, method, reqBody, safeJson(text));
-        } catch {
-          /* never break the page */
-        }
-      })();
-    }
-    return response;
-  } as typeof fetch;
-
-  // --- XMLHttpRequest ---
-  const XHR = win.XMLHttpRequest;
-  if (XHR) {
-    const meta = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
-    const originalOpen = XHR.prototype.open;
-    const originalSend = XHR.prototype.send;
-    XHR.prototype.open = function (
-      this: XMLHttpRequest,
-      method: string,
-      url: string | URL,
-      ...rest: unknown[]
-    ) {
-      meta.set(this, { method: method.toUpperCase(), url: String(url) });
-      return (originalOpen as (...a: unknown[]) => void).call(this, method, url, ...rest);
-    } as typeof XHR.prototype.open;
-    XHR.prototype.send = function (
-      this: XMLHttpRequest,
-      body?: Document | XMLHttpRequestBodyInit | null,
-    ) {
-      const m = meta.get(this);
-      if (m && isInteresting(m.url)) {
-        this.addEventListener("load", () => {
-          try {
-            const res =
-              this.responseType === "json"
-                ? this.response
-                : this.responseType === "" || this.responseType === "text"
-                  ? safeJson(this.responseText)
-                  : undefined;
-            handle(m.url, m.method, body, res);
-          } catch {
-            /* never break the page */
-          }
-        });
-      }
-      return originalSend.call(this, body);
-    };
-  }
+  watchRequests(win, (url) => matchSubmitUrl(url) !== null || matchCheckUrl(url) !== null, handle);
 
   // --- editor code requests from the isolated script ---
   win.addEventListener("message", (e: MessageEvent) => {

@@ -33,19 +33,35 @@ function extensionKey(): string | undefined {
 }
 const key = extensionKey();
 
+/** Opt-in sites: their scripts are registered at runtime once the user grants access. */
+const OPT_IN_HOSTS = ["https://neetcode.io/*"];
+
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   vite: () => ({ plugins: [tailwindcss()] }),
+  hooks: {
+    // WXT lists runtime-registered content scripts' matches as required host permissions.
+    // NeetCode access is optional (granted from Settings), so installing or updating never
+    // asks for it; "https://*/*" in optional_host_permissions covers it.
+    "build:manifestGenerated": (_wxt, manifest) => {
+      // E2E builds keep it: Playwright can't click Chrome's permission prompt.
+      if (readEnv("WXT_E2E") === "1") return;
+      manifest.host_permissions = manifest.host_permissions?.filter(
+        (h: string) => !OPT_IN_HOSTS.includes(h),
+      );
+    },
+  },
   manifest: {
     name: "LeetTrack",
     description: "Log every LeetCode attempt, with notes and history, without leaving the page.",
     // alarms: recount the review badge hourly and at midnight, and sync every 15 minutes.
     // sidePanel: the log panel can live in Chrome's side panel instead of on the page.
     // identity: signing in with GitHub through Chrome's own sign-in window.
-    permissions: ["storage", "alarms", "sidePanel", "identity"],
+    // scripting: the NeetCode scripts are registered only once the user turns NeetCode on.
+    permissions: ["storage", "alarms", "sidePanel", "identity", "scripting"],
     host_permissions: ["https://leetcode.com/*"],
     // Requested one origin at a time, only when the user sets up a complexity-suggestion
-    // provider in settings (any HTTPS API, or a local server).
+    // provider in settings (any HTTPS API, or a local server), or turns on NeetCode.
     optional_host_permissions: ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
     ...(key ? { key } : {}),
   },

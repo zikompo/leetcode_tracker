@@ -2,7 +2,7 @@ import type { PanelAutoOpen, Settings } from "@leettrack/core";
 import { call } from "@/lib/messaging";
 
 const PANEL_STYLES: Array<["floating" | "side", string, string]> = [
-  ["floating", "On the LeetCode page", "A small panel you can drag around, over the problem."],
+  ["floating", "On the problem page", "A small panel you can drag around, over the problem."],
   [
     "side",
     "In Chrome's side panel",

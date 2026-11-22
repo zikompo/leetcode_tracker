@@ -47,6 +47,7 @@ Until then, unpacked builds use the development key in `apps/extension/key.pub.t
 > - Patterns, not just problems: see how well you know each pattern, including how often you spot it on a first try, and which ones you can re-solve but miss cold.
 > - Interview mode: set an interview date and LeetTrack plans the problems left on your lists, brings shaky ones back for a review just before, and keeps the last days for review only.
 > - Timebox: past your time limit, it suggests one hint at a time instead of the solution.
+> - Works on NeetCode too: turn it on in Settings, and attempts on neetcode.io count toward the same problems.
 > - Optional: sync to the companion website, commit Accepted solutions to your GitHub repo, and get complexity suggestions from an AI provider you choose.
 >
 > Works offline with no account. LeetTrack never stores problem statements.
@@ -70,14 +71,15 @@ Add one more screenshot yourself: the log panel on a real leetcode.com problem a
 
 **Permission justifications:**
 
-| Permission                                  | Why                                                                                                                              |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`                                   | Keeps your attempts, settings and the sign-in session in the browser.                                                            |
-| `alarms`                                    | Updates the due-today badge at midnight and hourly, and syncs or retries GitHub commits in the background.                       |
-| `sidePanel`                                 | Lets the log panel live in Chrome's side panel if you choose that.                                                               |
-| Host access to `https://leetcode.com/*`     | Shows the log panel on problem pages and notices your submissions' results.                                                      |
-| Optional hosts (`https://*/*`, `localhost`) | Asked for one origin at a time, only when you set up an AI provider or GitHub sync, so the extension can reach that one service. |
-| `identity`                                  | Opens GitHub sign-in in a Chrome window and brings you back to the extension, so you can sync with the website.                  |
+| Permission                                  | Why                                                                                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                   | Keeps your attempts, settings and the sign-in session in the browser.                                                                             |
+| `alarms`                                    | Updates the due-today badge at midnight and hourly, and syncs or retries GitHub commits in the background.                                        |
+| `sidePanel`                                 | Lets the log panel live in Chrome's side panel if you choose that.                                                                                |
+| Host access to `https://leetcode.com/*`     | Shows the log panel on problem pages and notices your submissions' results.                                                                       |
+| Optional hosts (`https://*/*`, `localhost`) | Asked for one origin at a time, only when you turn on NeetCode or set up an AI provider or GitHub sync, so the extension can reach that one site. |
+| `scripting`                                 | Adds the log panel to neetcode.io problem pages, only after you turn NeetCode on in Settings and allow access to neetcode.io.                     |
+| `identity`                                  | Opens GitHub sign-in in a Chrome window and brings you back to the extension, so you can sync with the website.                                   |
 
 **Remote code:** No. All code is in the package.
 

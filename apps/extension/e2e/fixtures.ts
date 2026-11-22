@@ -10,6 +10,11 @@ const fixture = (name: string) =>
     readFileSync(path.resolve(here, "../adapters/leetcode/__fixtures__", name), "utf8"),
   ) as Record<string, unknown>;
 const mockPage = readFileSync(path.resolve(here, "mock-problem.html"), "utf8");
+const mockNeetcodePage = readFileSync(path.resolve(here, "mock-neetcode.html"), "utf8");
+const neetcodeFixture = (name: string) =>
+  JSON.parse(
+    readFileSync(path.resolve(here, "../adapters/neetcode/__fixtures__", name), "utf8"),
+  ) as Record<string, unknown>;
 
 const QUESTIONS: Record<string, { id: string; title: string; difficulty: string }> = {
   "two-sum": { id: "1", title: "Two Sum", difficulty: "Easy" },
@@ -61,6 +66,30 @@ async function mockLeetCode(route: Route) {
 mockLeetCode.counter = 0;
 mockLeetCode.polls = {} as Record<string, number>;
 
+/** Serves a fake neetcode.io: problem pages, problem metadata, Run and Submit. */
+async function mockNeetCode(route: Route) {
+  const req = route.request();
+  const url = new URL(req.url());
+  const json = (body: unknown) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  if (url.pathname === "/api/getProblemMetadataFunctionHttp") {
+    const { data } = req.postDataJSON() as { data: { problemId: string } };
+    const name = data.problemId === "two-integer-sum" ? "Two Sum" : "Mock Problem";
+    return json({ data: { name, difficulty: "Easy", topics: ["Array", "Hash Table"] } });
+  }
+  if (url.pathname === "/api/executeCodeFunctionHttp") {
+    const { data } = req.postDataJSON() as { data: { outcome?: string } };
+    return json(
+      neetcodeFixture(data.outcome === "wa" ? "submit-wrong-answer.json" : "submit-accepted.json"),
+    );
+  }
+  if (url.pathname === "/api/runCodeFunctionHttp")
+    return json(neetcodeFixture("submit-accepted.json"));
+  if (url.pathname.startsWith("/problems/"))
+    return route.fulfill({ status: 200, contentType: "text/html", body: mockNeetcodePage });
+  return route.fulfill({ status: 404, body: "" });
+}
+
 export const test = base.extend<{ context: BrowserContext; extensionId: string }>({
   context: async ({}, use) => {
     const context = await chromium.launchPersistentContext("", {
@@ -69,6 +98,7 @@ export const test = base.extend<{ context: BrowserContext; extensionId: string }
       args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
     });
     await context.route("https://leetcode.com/**", mockLeetCode);
+    await context.route("https://neetcode.io/**", mockNeetCode);
     await use(context);
     await context.close();
   },

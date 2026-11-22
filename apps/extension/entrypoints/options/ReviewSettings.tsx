@@ -118,7 +118,7 @@ export function ReviewSettings({
           checked={settings.hideTopicsWhileSolving}
           onChange={(e) => void save({ hideTopicsWhileSolving: e.target.checked })}
         />
-        Hide LeetCode's topic tags while the timer runs
+        Hide the problem's topic tags while the timer runs
       </label>
     </section>
   );

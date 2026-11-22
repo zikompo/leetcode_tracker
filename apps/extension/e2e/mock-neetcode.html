@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mock NeetCode problem</title>
+  </head>
+  <body>
+    <!-- Stand-in for a neetcode.io problem page. It makes the same requests the real client makes. -->
+    <h1 id="title">Mock NeetCode problem</h1>
+    <a href="#" id="solution-tab">Solution</a>
+    <button id="run">Run</button>
+    <button id="submit-wa">Submit (wrong answer)</button>
+    <button id="submit-ac">Submit (accepted)</button>
+    <div id="result"></div>
+    <div class="company-tags-container">
+      <a href="/practice/problem-list/array" id="topic-array">Array</a>
+    </div>
+    <script>
+      const slug = location.pathname.split("/")[2];
+      const call = (name, data) =>
+        fetch(`/api/${name}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data }),
+        }).then((r) => r.json());
+      async function submit(outcome) {
+        const res = await call("executeCodeFunctionHttp", {
+          problemId: slug,
+          rawCode: `# ${outcome} solution\nclass Solution: ...`,
+          lang: "python",
+          outcome,
+        });
+        document.getElementById("result").textContent = res.data.status.description;
+      }
+      document.getElementById("run").onclick = async () => {
+        const res = await call("runCodeFunctionHttp", {
+          problemId: slug,
+          rawCode: "",
+          lang: "python",
+        });
+        document.getElementById("result").textContent = `Ran: ${res.data.status.description}`;
+      };
+      document.getElementById("submit-wa").onclick = () => submit("wa");
+      document.getElementById("submit-ac").onclick = () => submit("ac");
+      document.getElementById("solution-tab").onclick = (e) => {
+        e.preventDefault();
+        history.pushState({}, "", `/problems/${slug}/solution`);
+      };
+    </script>
+  </body>
+</html>

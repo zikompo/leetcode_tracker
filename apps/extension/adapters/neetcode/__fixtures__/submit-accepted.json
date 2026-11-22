@@ -1,0 +1,10 @@
+{
+  "data": {
+    "status": { "id": 3, "description": "Accepted" },
+    "time": "0.051",
+    "memory": 17240,
+    "stdout": "",
+    "stderr": null,
+    "date": "2026-11-21T20:00:00.000Z"
+  }
+}

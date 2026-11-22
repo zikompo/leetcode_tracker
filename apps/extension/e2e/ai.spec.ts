@@ -135,6 +135,10 @@ test("a failed suggestion explains why and can be retried", async ({ context }) 
 test("nothing is sent while suggestions are off", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);
+  // Submit only once the content script is listening, or the submission can go unseen.
+  await page
+    .getByRole("button", { name: "Open LeetTrack log panel" })
+    .waitFor({ state: "attached" });
   await page.click("#submit-ac");
   const panel = page.getByRole("region", { name: "LeetTrack" });
   await expect(panel.locator(".lt-solution")).toHaveCount(1);

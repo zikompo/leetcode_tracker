@@ -72,6 +72,10 @@ test("problem detail: timeline, code diff and manual status", async ({ page }) =
     "href",
     /^https:\/\/leetcode\.com\/problems\//,
   );
+  await expect(page.getByRole("link", { name: /Open on NeetCode/ })).toHaveAttribute(
+    "href",
+    /^https:\/\/neetcode\.io\/problems\/[a-z0-9-]+\/question$/,
+  );
   await expectNoPageOverflow(page);
 });
 

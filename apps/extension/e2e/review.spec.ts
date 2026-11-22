@@ -171,8 +171,10 @@ test("LeetCode's topic tags hide while the timer runs, when enabled", async ({
 }) => {
   const options = await context.newPage();
   await options.goto(`chrome-extension://${extensionId}/options.html`);
-  await options.getByLabel("Hide LeetCode's topic tags while the timer runs").check();
-  await expect(options.getByLabel("Hide LeetCode's topic tags while the timer runs")).toBeChecked();
+  await options.getByLabel("Hide the problem's topic tags while the timer runs").check();
+  await expect(
+    options.getByLabel("Hide the problem's topic tags while the timer runs"),
+  ).toBeChecked();
 
   const page = await context.newPage();
   await page.goto("https://leetcode.com/problems/two-sum/description/");

@@ -197,7 +197,18 @@ export function App({
       {(side || state.panelOpen) && (
         <section
           className={side ? "lt-panel lt-panel-side" : "lt-panel"}
-          {...(side ? {} : { style: { left: pos.x, top: pos.y, width: PANEL_WIDTH } })}
+          {...(side
+            ? {}
+            : {
+                style: {
+                  left: pos.x,
+                  top: pos.y,
+                  width: PANEL_WIDTH,
+                  // Stop short of the window's bottom edge wherever the panel sits, so the body
+                  // scrolls and the Save button stays on screen.
+                  maxHeight: `calc(100vh - ${Math.round(pos.y) + 8}px)`,
+                },
+              })}
           aria-label="LeetTrack"
         >
           <header

@@ -256,6 +256,48 @@ test("one tap saves an Accepted solution with the suggested answers", async ({ c
   await expect(panel.locator(".lt-chips-static .lt-chip")).toHaveText(["Arrays & hashing"]);
 });
 
+test("entries survive collapsing the panel, notes fit in the summary, and Save stays on screen", async ({
+  context,
+}) => {
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1280, height: 640 });
+  await page.goto(PROBLEM);
+  await extensionReady(page);
+  await page.click("#submit-ac");
+  const panel = page.getByRole("region", { name: "LeetTrack" });
+  const summary = panel.getByRole("region", { name: "Attempt summary" });
+  await summary.getByLabel(/^Notes/).fill("Store complements as you go.");
+  const cx = (name: string) => panel.getByRole("radiogroup", { name });
+  const linear = cx("Solution 1 time complexity").getByRole("radio", { name: "O(n)", exact: true });
+  await linear.click();
+
+  // Collapsing, closing or switching to History unmounts the form; what was entered comes back.
+  await panel.getByRole("button", { name: "Collapse panel" }).click();
+  await panel.getByRole("button", { name: "Expand panel" }).click();
+  await panel.getByRole("tab", { name: /History/ }).click();
+  await panel.getByRole("tab", { name: "Log attempt" }).click();
+  await panel.getByRole("button", { name: "Close panel" }).click();
+  await page.getByRole("button", { name: "Open LeetTrack log panel" }).click();
+  await expect(linear).toHaveAttribute("aria-checked", "true");
+  await expect(summary.getByLabel(/^Notes/)).toHaveValue("Store complements as you go.");
+
+  // The full form is taller than the window: it scrolls inside the panel, Save always in view.
+  await panel.getByRole("button", { name: "Edit details" }).click();
+  await expect(linear).toHaveAttribute("aria-checked", "true");
+  await expect(panel.getByLabel(/^Notes/)).toHaveValue("Store complements as you go.");
+  const save = panel.getByRole("button", { name: "Save attempt" });
+  await expect(save).toBeInViewport({ ratio: 1 });
+  const box = await panel.boundingBox();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(640);
+
+  await save.click();
+  await expect(panel.getByText("Attempt saved.")).toBeVisible();
+  await panel.getByRole("tab", { name: "History (1)" }).click();
+  await expect(panel.locator(".lt-attempt")).toContainText("O(n) time");
+  await panel.getByText("Notes and code").click();
+  await expect(panel.getByText("Store complements as you go.")).toBeVisible();
+});
+
 test("after opening the Editorial, the summary says solved with help", async ({ context }) => {
   const page = await context.newPage();
   await page.goto(PROBLEM);

@@ -42,6 +42,17 @@ const OPTIMALITY: Array<[Optimality, string]> = [
 
 const RATINGS: Rating[] = [1, 2, 3, 4];
 
+/** What the user has entered but not saved yet, by attempt (its session's start time). */
+interface UnsavedForm {
+  draft: AttemptDraft;
+  ratingTouched: boolean;
+  codeTouched: boolean;
+  patternsTouched: boolean;
+  detailed: boolean;
+  editingCx: number[];
+}
+const unsavedForms = new Map<string, UnsavedForm>();
+
 interface Props {
   session: AttemptSession;
   problem: ProblemState;
@@ -325,19 +336,32 @@ export function LogForm({
   onSetTwists,
 }: Props) {
   const isFirst = problem.attempts.length === 0;
-  const [draft, setDraft] = useState<AttemptDraft>(() => ({
-    patterns: problem.problem?.patterns ?? [],
-  }));
-  const [ratingTouched, setRatingTouched] = useState(false);
-  const [codeTouched, setCodeTouched] = useState(false);
+  const kept = unsavedForms.get(session.startedAt);
+  const [draft, setDraft] = useState<AttemptDraft>(
+    () => kept?.draft ?? { patterns: problem.problem?.patterns ?? [] },
+  );
+  const [ratingTouched, setRatingTouched] = useState(kept?.ratingTouched ?? false);
+  const [codeTouched, setCodeTouched] = useState(kept?.codeTouched ?? false);
   const [showErrors, setShowErrors] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showSuggested, setShowSuggested] = useState(false);
-  const [patternsTouched, setPatternsTouched] = useState(false);
+  const [patternsTouched, setPatternsTouched] = useState(kept?.patternsTouched ?? false);
   /** After Accepted the form starts as a one-tap summary; this opens the full form. */
-  const [detailed, setDetailed] = useState(false);
+  const [detailed, setDetailed] = useState(kept?.detailed ?? false);
   /** Solutions whose suggested complexity the user opened up to change. */
-  const [editingCx, setEditingCx] = useState<number[]>([]);
+  const [editingCx, setEditingCx] = useState<number[]>(kept?.editingCx ?? []);
+  // Keep what's been entered if the form unmounts before saving (panel collapsed or closed,
+  // History opened), so it comes back as it was.
+  useEffect(() => {
+    unsavedForms.set(session.startedAt, {
+      draft,
+      ratingTouched,
+      codeTouched,
+      patternsTouched,
+      detailed,
+      editingCx,
+    });
+  }, [session.startedAt, draft, ratingTouched, codeTouched, patternsTouched, detailed, editingCx]);
 
   const update = (patch: Partial<AttemptDraft>) => setDraft((d) => ({ ...d, ...patch }));
   // After an Accepted the likely answers are filled in; anything the user picks wins.
@@ -418,6 +442,7 @@ export function LogForm({
       setDetailed(true);
       return;
     }
+    unsavedForms.delete(session.startedAt);
     onSave(finalDraft);
   };
   const err = (k: keyof AttemptDraft) => (showErrors ? errors[k] : undefined);
@@ -620,6 +645,18 @@ export function LogForm({
               </div>
             )}
           </dl>
+          <label className="lt-field">
+            <span className="lt-label">
+              Notes <span className="lt-hint">optional · Markdown</span>
+            </span>
+            <textarea
+              className="lt-input lt-textarea"
+              rows={2}
+              placeholder="Anything to remember for next time"
+              value={draft.notes ?? ""}
+              onChange={(e) => update({ notes: e.target.value })}
+            />
+          </label>
           {isFirst && (
             <label className="lt-check">
               <input
@@ -841,7 +878,12 @@ export function LogForm({
           <span className="lt-error">Fill in the highlighted fields.</span>
         )}
         {quick && (
-          <button type="button" className="lt-btn lt-btn-ghost" onClick={() => setDetailed(true)}>
+          <button
+            type="button"
+            className="lt-btn lt-btn-ghost"
+            title="Outcome, optimality, confidence, patterns, pattern clue, where you got stuck, code"
+            onClick={() => setDetailed(true)}
+          >
             Edit details
           </button>
         )}

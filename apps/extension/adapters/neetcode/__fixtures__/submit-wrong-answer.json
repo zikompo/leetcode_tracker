@@ -1,0 +1,10 @@
+{
+  "data": {
+    "status": { "id": 4, "description": "Wrong Answer" },
+    "time": "0.048",
+    "memory": 17100,
+    "stdout": "[1,0]",
+    "stderr": null,
+    "date": "2026-11-21T20:00:00.000Z"
+  }
+}

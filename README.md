@@ -36,9 +36,11 @@ packages/ui         Shared UI: LeetCode-style theme (Tailwind v4), shadcn/ui com
 supabase            Database schema (migrations) and its tests (PGlite)
 apps/extension      WXT + React MV3 extension
   adapters/leetcode   The only code that knows LeetCode URLs and payload shapes
+  adapters/neetcode   The same for neetcode.io (opt-in from Settings; maps NeetCode's slugs to LeetCode's)
+  adapters/sites.ts   What the log panel needs from a site, for LeetCode and NeetCode
   lib/                Background service (IndexedDB), sync, account, AI suggestions, messaging
-  entrypoints/        background, page-world interceptor, content script + panel, side panel, popup, options, onboarding, dashboard
-  e2e/                Playwright tests against a mock leetcode.com and a fake Supabase
+  entrypoints/        background, page-world interceptors, content scripts + panel, side panel, popup, options, onboarding
+  e2e/                Playwright tests against a mock leetcode.com and neetcode.io and a fake Supabase
 apps/web            Next.js website: dashboard, review queue, problems, patterns, lists, plan, mocks, clues, settings, privacy
 docs                Setup guides
 ```

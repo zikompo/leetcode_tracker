@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { observeResultBanner, RESULT_SELECTOR } from "../dom-fallback";
 import { createSubmissionDetector } from "../detector";
-import { PAGE_SOURCE } from "../events";
+import { PAGE_SOURCE } from "../../page/events";
 
 const banner = (text: string) => {
   const span = document.createElement("span");

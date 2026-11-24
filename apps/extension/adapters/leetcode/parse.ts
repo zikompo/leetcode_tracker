@@ -1,4 +1,4 @@
-import type { SubmissionResult, SubmissionStarted } from "./events";
+import type { SubmissionResult, SubmissionStarted } from "../page/events";
 
 // Pure parsers for LeetCode's submit/check payloads.
 // Shapes verified against leetcode.com's client bundle on 2026-11-14:

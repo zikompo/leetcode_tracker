@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installInterceptor } from "../interceptor";
-import { PAGE_SOURCE, type PageEvent } from "../events";
+import { PAGE_SOURCE, type PageEvent } from "../../page/events";
 import accepted from "../__fixtures__/check-accepted.json";
 import submitReq from "../__fixtures__/submit-request.json";
 

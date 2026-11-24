@@ -8,7 +8,7 @@ import {
   type Attempt,
 } from "@leettrack/core";
 import { allLists, patternName, problemStateFrom } from "@leettrack/insights";
-import { SEED_BY_SLUG } from "@leettrack/seed";
+import { SEED_BY_SLUG, neetcodeUrl } from "@leettrack/seed";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@leettrack/ui/components/badge";
 import { Button } from "@leettrack/ui/components/button";
@@ -58,6 +58,10 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
       code: a.code!,
     }));
   const { status, card } = state;
+  // A problem logged on NeetCode that isn't in NeetCode's lists lives only on neetcode.io.
+  const storedUrl = snap.problemMap.get(slug)?.url ?? "";
+  const neetcodeOnly = !SEED_BY_SLUG.has(slug) && storedUrl.startsWith("https://neetcode.io/");
+  const onNeetcode = neetcodeUrl(slug) ?? (neetcodeOnly ? storedUrl : undefined);
 
   return (
     <>
@@ -82,16 +86,32 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
             {card?.isLeech && <Badge variant="destructive">leech</Badge>}
           </div>
         </div>
-        <Button asChild>
-          <a
-            href={leetcodeUrl(slug)}
-            target="_blank"
-            rel="noreferrer"
-            className="no-underline hover:no-underline"
-          >
-            Open on LeetCode <ExternalLink aria-hidden />
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {!neetcodeOnly && (
+            <Button asChild>
+              <a
+                href={leetcodeUrl(slug)}
+                target="_blank"
+                rel="noreferrer"
+                className="no-underline hover:no-underline"
+              >
+                Open on LeetCode <ExternalLink aria-hidden />
+              </a>
+            </Button>
+          )}
+          {onNeetcode && (
+            <Button asChild variant={neetcodeOnly ? "default" : "outline"}>
+              <a
+                href={onNeetcode}
+                target="_blank"
+                rel="noreferrer"
+                className="no-underline hover:no-underline"
+              >
+                Open on NeetCode <ExternalLink aria-hidden />
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">

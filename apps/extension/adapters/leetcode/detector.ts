@@ -1,6 +1,6 @@
-import { listenToPage } from "./bridge";
+import { listenToPage } from "../page/bridge";
 import { observeResultBanner } from "./dom-fallback";
-import type { SubmissionResult, SubmissionStarted } from "./events";
+import type { SubmissionResult, SubmissionStarted } from "../page/events";
 import { parseProblemUrl } from "./url";
 
 export interface DetectorCallbacks {

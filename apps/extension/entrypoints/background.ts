@@ -4,6 +4,7 @@ import { createAiService } from "@/lib/ai";
 import { GITHUB_ENV, chromeGitHubStore, githubApi } from "@/lib/github/chrome";
 import { createGitHub } from "@/lib/github/service";
 import { chromeSessionStore, idbRepo } from "@/lib/db";
+import { syncNeetcodeScripts } from "@/lib/neetcode";
 import { createService } from "@/lib/service";
 import type { ApiMethod, ApiRequest, ApiResponse } from "@/lib/types";
 
@@ -126,6 +127,12 @@ export default defineBackground(() => {
     }
   }
   void syncPanelBehavior();
+
+  // NeetCode's scripts run only while the user has given access to neetcode.io.
+  const syncNeetcode = () => void syncNeetcodeScripts().catch((err) => console.warn(err));
+  browser.permissions.onAdded.addListener(syncNeetcode);
+  browser.permissions.onRemoved.addListener(syncNeetcode);
+  syncNeetcode();
 
   browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     // From the page's "Open side panel" button: open it right away, while the click still

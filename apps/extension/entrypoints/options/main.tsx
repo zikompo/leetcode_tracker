@@ -7,6 +7,7 @@ import { AccountSettings } from "./AccountSettings";
 import { GitHubSettings } from "./GitHubSettings";
 import { AiSettings } from "./AiSettings";
 import { DataSettings } from "./DataSettings";
+import { NeetcodeSettings } from "./NeetcodeSettings";
 import { PanelSettings } from "./PanelSettings";
 import { PatternSettings } from "./PatternSettings";
 import { InterviewSettings } from "./InterviewSettings";
@@ -44,6 +45,8 @@ function Options() {
       </header>
 
       <PanelSettings settings={settings} onChange={setSettings} />
+
+      <NeetcodeSettings />
 
       <AccountSettings />
 

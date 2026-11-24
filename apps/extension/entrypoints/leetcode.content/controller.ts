@@ -12,15 +12,11 @@ import {
   type Submission,
 } from "@leettrack/core";
 import {
-  createSubmissionDetector,
-  fetchProblemMetadata,
-  isSolutionTab,
-  parseProblemUrl,
   requestEditorCode,
-  type ProblemLocation,
   type SubmissionResult,
   type SubmissionStarted,
 } from "@/adapters/leetcode";
+import { LEETCODE, type PageLocation, type Site } from "@/adapters/sites";
 import type { AiStatus } from "@/lib/ai";
 import { call } from "@/lib/messaging";
 import { mergeSessions } from "@/lib/session";
@@ -32,11 +28,11 @@ const HIDE_TOPICS_ID = "leettrack-hide-topics";
 /** A session idle this long is treated as abandoned; the next visit starts a fresh attempt. */
 const STALE_SESSION_MS = 6 * 60 * 60 * 1000;
 const FLUSH_EVERY_TICKS = 10;
-/** Re-fetch LeetCode metadata when the cached copy is older than this. */
+/** Re-fetch problem metadata when the cached copy is older than this. */
 const METADATA_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface PageState {
-  loc: ProblemLocation | null;
+  loc: PageLocation | null;
   problem: ProblemState | null;
   session: AttemptSession | null;
   settings: Settings;
@@ -87,7 +83,10 @@ export class PageController {
   private ticks = 0;
   private cleanups: Array<() => void> = [];
 
-  constructor(private win: Window) {}
+  constructor(
+    private win: Window,
+    private site: Site = LEETCODE,
+  ) {}
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -107,7 +106,7 @@ export class PageController {
 
   async start() {
     this.cleanups.push(this.subscribe(() => this.syncTopicHiding()));
-    const detector = createSubmissionDetector(this.win, {
+    const detector = this.site.createDetector(this.win, {
       onStarted: (e) => void this.onStarted(e).catch((err) => this.report(err)),
       onResult: (e) => void this.onResult(e).catch((err) => this.report(err)),
     });
@@ -147,7 +146,7 @@ export class PageController {
   }
 
   async onLocationChange(href: string) {
-    const loc = parseProblemUrl(href);
+    const loc = this.site.parseLocation(href);
     const prevSlug = this.state.loc?.slug;
     if (loc?.slug !== prevSlug) {
       await this.flush();
@@ -161,14 +160,15 @@ export class PageController {
         error: null,
         formKey: this.state.formKey + 1,
       });
-      if (loc) await this.loadProblem(loc.slug);
+      if (loc) await this.loadProblem(loc);
     } else {
       this.set({ loc });
     }
-    if (loc && isSolutionTab(loc.tab)) this.markViewedSolution();
+    if (loc?.revealsSolution) this.markViewedSolution();
   }
 
-  private async loadProblem(slug: string) {
+  private async loadProblem(loc: PageLocation) {
+    const { slug } = loc;
     try {
       const [problem, existing] = await Promise.all([
         call("getProblemState", slug),
@@ -189,7 +189,7 @@ export class PageController {
       const fresh =
         cached && cached.frontendId && Date.now() - Date.parse(cached.updatedAt) < METADATA_TTL_MS;
       if (!fresh) {
-        const meta = await fetchProblemMetadata(slug);
+        const meta = await this.site.fetchMetadata(loc);
         if (meta && this.state.loc?.slug === slug)
           this.set({ problem: await call("upsertProblemMeta", meta) });
       }
@@ -300,7 +300,7 @@ export class PageController {
    * processed, so a submission that finishes very early is still recorded.
    */
   private currentSlug(): string | undefined {
-    return this.state.loc?.slug ?? parseProblemUrl(this.win.location.href)?.slug;
+    return this.state.loc?.slug ?? this.site.parseLocation(this.win.location.href)?.slug;
   }
 
   private async onStarted(e: SubmissionStarted) {
@@ -502,7 +502,7 @@ export class PageController {
   }
 
   /**
-   * With the setting on, hide LeetCode's topic tags while the attempt clock runs, so they
+   * With the setting on, hide the site's topic tags while the attempt clock runs, so they
    * don't give the approach away (spec 4.4). They come back when the clock stops.
    */
   private syncTopicHiding() {
@@ -513,8 +513,7 @@ export class PageController {
     if (hide && !existing) {
       const style = doc.createElement("style");
       style.id = HIDE_TOPICS_ID;
-      // LeetCode renders each topic as a link to /tag/<slug>/ in the "Topics" section.
-      style.textContent = 'a[href^="/tag/"] { display: none !important; }';
+      style.textContent = this.site.hideTopicsCss;
       (doc.head ?? doc.documentElement).append(style);
     } else if (!hide && existing) {
       existing.remove();

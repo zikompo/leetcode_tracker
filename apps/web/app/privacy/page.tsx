@@ -43,15 +43,17 @@ export default function PrivacyPage() {
 
       <Section title="What the extension stores">
         <p>
-          On leetcode.com problem pages, the extension records your <strong>attempts</strong>: the
+          On leetcode.com problem pages (and on neetcode.io, if you turn that on in the
+          extension&apos;s settings), the extension records your <strong>attempts</strong>: the
           problem&apos;s name and number, when you started and finished, time spent, your
           submissions&apos; results, the language and code of your solutions, and what you enter in
           the log panel (outcome, help used, complexity, patterns, ratings, notes). It also keeps
           your settings, lists, interview dates and mock-interview notes.
         </p>
         <p>
-          It never stores <strong>problem statements</strong> or other LeetCode content beyond a
-          problem&apos;s title, number, difficulty and topic tags. It reads nothing on other sites.
+          It never stores <strong>problem statements</strong> or other LeetCode or NeetCode content
+          beyond a problem&apos;s title, number, difficulty and topic tags. It reads nothing on
+          other sites.
         </p>
         <p>
           All of this is kept <strong>locally in your browser</strong> (the extension&apos;s own
